@@ -1,0 +1,21 @@
+BasedOnStyle: llvm
+IndentWidth: 4
+TabWidth: 4
+UseTab: Never
+ColumnLimit: 80
+BreakBeforeBraces: Attach
+
+SpaceBeforeParens: ControlStatements
+SpacesInParentheses: false
+SpacesInAngles: false
+SpacesInSquareBrackets: false
+
+ReflowComments: true
+SortIncludes: false
+
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+AlignEscapedNewlines: Left
+
+PointerAlignment: Right
+QualifierAlignment: Right
