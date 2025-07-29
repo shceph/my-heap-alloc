@@ -13,8 +13,9 @@ SpacesInSquareBrackets: false
 ReflowComments: true
 SortIncludes: false
 
-AlignConsecutiveAssignments: false
-AlignConsecutiveDeclarations: false
+AlignConsecutiveAssignments: Consecutive
+AlignConsecutiveMacros: Consecutive
+AlignConsecutiveDeclarations: Consecutive
 AlignEscapedNewlines: Left
 
 PointerAlignment: Right

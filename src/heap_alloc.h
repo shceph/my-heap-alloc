@@ -9,6 +9,8 @@ typedef struct chunk_llist {
     struct chunk_llist *next;
 } chunk_llist_t;
 
+#define MIN_CHUNK_SIZE (sizeof(chunk_llist_t) + 8)
+
 typedef struct heap_allocator {
     size_t size;
     void *begin;

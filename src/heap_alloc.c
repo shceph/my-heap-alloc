@@ -7,8 +7,8 @@ heap_allocator_t heap_allocator_create(size_t size) {
                      MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
     heap_allocator_t allocator = {
-        .size = size,
-        .begin = ptr,
+        .size             = size,
+        .begin            = ptr,
         .chunk_llist_head = (chunk_llist_t *)ptr,
     };
 
@@ -20,6 +20,10 @@ heap_allocator_t heap_allocator_create(size_t size) {
 }
 
 void *heap_alloc(heap_allocator_t *allocator, size_t size) {
+    if (allocator == nullptr || size == 0) {
+        return nullptr;
+    }
+
     chunk_llist_t *chunk = allocator->chunk_llist_head;
 
     while (chunk != nullptr) {
@@ -33,6 +37,11 @@ void *heap_alloc(heap_allocator_t *allocator, size_t size) {
         if (new_chunk_size > chunk->size) {
             chunk = chunk->next;
             continue;
+        }
+
+        if (chunk->size - new_chunk_size < MIN_CHUNK_SIZE) {
+            chunk->used = true;
+            return (void *)(chunk + 1);
         }
 
         chunk_llist_t *curr_chunk_new_location =
@@ -49,4 +58,36 @@ void *heap_alloc(heap_allocator_t *allocator, size_t size) {
     }
 
     return nullptr;
+}
+
+void heap_free(heap_allocator_t *allocator, void *ptr) {
+    if (allocator == nullptr) {
+        return;
+    }
+
+    chunk_llist_t *parent = nullptr;
+    chunk_llist_t *chunk  = allocator->chunk_llist_head;
+
+    while (chunk != nullptr) {
+        if (chunk + 1 != ptr) {
+            parent = chunk;
+            chunk  = chunk->next;
+            continue;
+        }
+
+        chunk->used          = false;
+        chunk_llist_t *child = chunk->next;
+
+        if (child != nullptr && !child->used) {
+            chunk->next = child->next;
+            chunk->size += child->size;
+        }
+
+        if (parent != nullptr && !parent->used) {
+            parent->next = chunk->next;
+            parent->size += chunk->size;
+        }
+
+        return;
+    }
 }
