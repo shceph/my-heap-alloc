@@ -14,5 +14,20 @@ list(REMOVE_ITEM LIB_SOURCES "${CMAKE_SOURCE_DIR}/src/heap_alloc_test.c")
 
 add_library(heap_alloc STATIC ${LIB_SOURCES})
 
-add_executable(heap_alloc_test src/heap_alloc_test.c)
-target_link_libraries(heap_alloc_test PRIVATE heap_alloc)
+file(GLOB TEST_SOURCES "test/*.c")
+
+foreach(test_file IN LISTS TEST_SOURCES)
+  get_filename_component(test_name ${test_file} NAME_WE)
+
+  add_executable(${test_name} ${test_file})
+  target_link_libraries(${test_name} PRIVATE heap_alloc)
+
+  if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
+    target_compile_options(${test_name} PRIVATE -Wall -Wextra -Wpedantic
+                                                -Werror)
+  elseif(MSVC)
+    target_compile_options(${test_name} PRIVATE /W4 /WX)
+  else()
+    message(WARNING "Unknown compiler: not setting warning flags")
+  endif()
+endforeach()

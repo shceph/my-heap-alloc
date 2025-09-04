@@ -1,0 +1,28 @@
+Checks: >
+    performance-*,
+    misc-*,
+    android-cloexec-*,
+    readability-*,
+    portability-*,
+    bugprone-*,
+    # readability-duplicate-include,
+    # readability-misleading-indentation,
+    # bugprone-assert-side-effect,
+    # bugprone-macro-repeated-side-effects,
+    # bugprone-infinite-loop,
+    # bugprone-macro-parentheses,
+    # bugprone-posix-return,
+    # bugprone-reserved-identifier,
+    # bugprone-signal-handler,
+    # bugprone-signed-char-misuse,
+    # bugprone-sizeof-expression,
+    # bugprone-branch-clone,
+    -readability-identifier-length,
+    -clang-analyzer-security.insecureAPI.*,
+    -misc-no-recursion,
+
+WarningsAsErrors: '*'
+
+CheckOptions:
+  - key:             bugprone-assert-side-effect.AssertMacros
+    value:           'ASSERT'

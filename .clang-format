@@ -11,12 +11,14 @@ SpacesInAngles: false
 SpacesInSquareBrackets: false
 
 ReflowComments: true
-SortIncludes: false
+SortIncludes: true
 
-AlignConsecutiveAssignments: Consecutive
+# AlignConsecutiveAssignments: Consecutive
 AlignConsecutiveMacros: Consecutive
-AlignConsecutiveDeclarations: Consecutive
-AlignEscapedNewlines: Left
+# AlignConsecutiveDeclarations: Consecutive
+# AlignEscapedNewlines: Left
+
+AllowShortFunctionsOnASingleLine: None
 
 PointerAlignment: Right
-QualifierAlignment: Right
+QualifierAlignment: Left
