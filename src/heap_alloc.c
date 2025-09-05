@@ -33,9 +33,9 @@ heap_allocator_t heap_allocator_create(size_t size) {
         aloc.regions[i].size = 0;
     }
 
+    aloc.chunk_llist_head->attr = 0;
     chunk_set_used(aloc.chunk_llist_head, false);
     chunk_set_size(aloc.chunk_llist_head, size);
-    chunk_set_bits_to_1(aloc.chunk_llist_head, CHUNK_START_OF_REGION_BIT);
     aloc.chunk_llist_head->next = nullptr;
     aloc.chunk_llist_head->prev = nullptr;
 
@@ -77,18 +77,7 @@ static bool heap_allocator_add_region(heap_allocator_t *aloc,
     aloc->regions[aloc->region_count].begin = ptr;
     aloc->regions[aloc->region_count].size = new_reg_size;
 
-    chunk_t *prev_reg_begin = aloc->regions[aloc->region_count - 1].begin;
-
-    // TODO: This sucks, must be fixed
-    while (prev_reg_begin->next != nullptr) {
-        prev_reg_begin = prev_reg_begin->next;
-    }
-
-    prev_reg_begin->next = ptr;
-
     chunk_set_size(ptr, new_reg_size);
-    chunk_reset_flags(ptr);
-    chunk_set_bits_to_1(ptr, CHUNK_START_OF_REGION_BIT);
     chunk_set_used(ptr, false);
     ptr->next = nullptr;
     ptr->prev = nullptr;
@@ -106,15 +95,19 @@ void *heap_alloc(heap_allocator_t *aloc, size_t size) {
 
     size = align_up(size);
 
-    chunk_t *chunk = aloc->chunk_llist_head;
+    chunk_t *chunk = nullptr;
 
-    while (chunk != nullptr) {
-        if (chunk_split_unused(chunk, size) == SPLIT_FAILURE) {
-            chunk = chunk->next;
-            continue;
+    for (size_t i = 0; i < aloc->region_count; ++i) {
+        chunk = aloc->regions[i].begin;
+
+        while (chunk != nullptr) {
+            if (chunk_split_unused(chunk, size) == SPLIT_FAILURE) {
+                chunk = chunk->next;
+                continue;
+            }
+
+            return (void *)(chunk + 1);
         }
-
-        return (void *)(chunk + 1);
     }
 
     if (!heap_allocator_add_region(aloc, size)) {
@@ -197,8 +190,7 @@ void heap_free(heap_allocator_t *aloc, void *ptr) {
 
     chunk_set_used(chunk, false);
 
-    if (child != nullptr && !chunk_is_used(child) &&
-        !chunk_get_bit(child, CHUNK_START_OF_REGION_BIT)) {
+    if (child != nullptr && !chunk_is_used(child)) {
         chunk->next = child->next;
 
         if (chunk->next != nullptr) {

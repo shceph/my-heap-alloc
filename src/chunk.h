@@ -8,17 +8,15 @@
 #define MIN_CHUNK_SIZE (sizeof(chunk_t) + CHUNK_ALIGN)
 
 typedef struct chunk_t {
-    // Last bit represents if the chunk is used, the rest is the size.
-    // It's assumed that the size is 2 byte aligned.
+    // Last bit represents if the chunk is used
     alignas(CHUNK_ALIGN) size_t attr;
     struct chunk_t *prev;
     struct chunk_t *next;
 } chunk_t;
 
-#define CHUNK_USED_BIT            (0x1UL)
-#define CHUNK_START_OF_REGION_BIT (0x2UL)
-#define CHUNK_FLAG_BITS           (CHUNK_ALIGN - 1)
-#define CHUNK_SIZE_BITS           (~CHUNK_FLAG_BITS)
+#define CHUNK_USED_BIT  (0x1UL)
+#define CHUNK_FLAG_BITS (CHUNK_ALIGN - 1)
+#define CHUNK_SIZE_BITS (~CHUNK_FLAG_BITS)
 
 inline static size_t align_up(size_t size) {
     return (size + CHUNK_ALIGN - 1) & ~(CHUNK_ALIGN - 1);

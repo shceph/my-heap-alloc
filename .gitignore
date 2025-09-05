@@ -1047,4 +1047,5 @@ dkms.conf
 # clangd cache
 .cache/
 
-scripts/
+scripts/make.sh
+scripts/cmake.sh
