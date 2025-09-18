@@ -8,11 +8,11 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-file(GLOB LIB_SOURCES ${CMAKE_SOURCE_DIR}/src/*.c)
+file(GLOB FALLBACK_ALLOC_SOURCES ${CMAKE_SOURCE_DIR}/src/fallback_allocator/*.c)
+add_library(fallback_alloc SHARED ${FALLBACK_ALLOC_SOURCES})
 
-list(REMOVE_ITEM LIB_SOURCES "${CMAKE_SOURCE_DIR}/src/heap_alloc_test.c")
-
-add_library(heap_alloc STATIC ${LIB_SOURCES})
+file(GLOB FAST_ALLOC_SOURCES ${CMAKE_SOURCE_DIR}/src/fast_allocator/*.c)
+add_library(fast_alloc SHARED ${FAST_ALLOC_SOURCES})
 
 file(GLOB TEST_SOURCES "test/*.c")
 
@@ -20,7 +20,7 @@ foreach(test_file IN LISTS TEST_SOURCES)
   get_filename_component(test_name ${test_file} NAME_WE)
 
   add_executable(${test_name} ${test_file})
-  target_link_libraries(${test_name} PRIVATE heap_alloc)
+  target_link_libraries(${test_name} PRIVATE fallback_alloc fast_alloc)
 
   if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")
     target_compile_options(${test_name} PRIVATE -Wall -Wextra -Wpedantic

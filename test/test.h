@@ -1,22 +1,24 @@
 #ifndef TEST_H
 #define TEST_H
 
-#include "../src/heap_alloc.h"
+#include "../src/fallback_allocator/fallback_allocator.h"
 
 #include <stdio.h>
 
-void print_allocator_memory_layout(heap_allocator_t *aloc) {
+void print_allocator_memory_layout(FallbackHeapAllocator *aloc) {
     printf("\nallocator data addr: %p\n\n", (void *)aloc->chunk_llist_head);
 
     for (size_t i = 0; i < aloc->region_count; ++i) {
         printf("\n======Region Number %02zu======\n\n", i);
 
-        chunk_t *chunk = aloc->regions[i].begin;
+        FallbackChunk *chunk = aloc->regions[i].begin;
 
         while (chunk != nullptr) {
             printf("addr: %p\n", (void *)chunk);
-            printf("used: %s\n", (int)chunk_is_used(chunk) ? "true" : "false");
-            printf("size: %zu (0x%lx)\n", chunk_size(chunk), chunk_size(chunk));
+            printf("used: %s\n",
+                   (int)fallback_chunk_is_used(chunk) ? "true" : "false");
+            printf("size: %zu (0x%lx)\n", fallback_chunk_size(chunk),
+                   fallback_chunk_size(chunk));
             printf("prev: %p\n", (void *)chunk->prev);
             printf("next: %p\n\n", (void *)chunk->next);
             chunk = chunk->next;

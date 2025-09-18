@@ -1,28 +1,34 @@
 Checks: >
     performance-*,
     misc-*,
+    -misc-no-recursion,
     android-cloexec-*,
     readability-*,
+    -readability-identifier-length,
     portability-*,
     bugprone-*,
-    # readability-duplicate-include,
-    # readability-misleading-indentation,
-    # bugprone-assert-side-effect,
-    # bugprone-macro-repeated-side-effects,
-    # bugprone-infinite-loop,
-    # bugprone-macro-parentheses,
-    # bugprone-posix-return,
-    # bugprone-reserved-identifier,
-    # bugprone-signal-handler,
-    # bugprone-signed-char-misuse,
-    # bugprone-sizeof-expression,
-    # bugprone-branch-clone,
-    -readability-identifier-length,
+    cert-*,
+    -cert-*-cpp,
     -clang-analyzer-security.insecureAPI.*,
-    -misc-no-recursion,
 
 WarningsAsErrors: '*'
 
 CheckOptions:
-  - key:             bugprone-assert-side-effect.AssertMacros
-    value:           'ASSERT'
+  - key: bugprone-assert-side-effect.AssertMacros
+    value: 'ASSERT'
+  - key: readability-function-cognitive-complexity.IgnoreMacros
+    value: true
+  - key: readability-identifier-naming.StructCase
+    value: CamelCase
+  - key: readability-identifier-naming.TypedefCase
+    value: CamelCase
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.EnumConstantCase
+    value: UPPER_CASE
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: UPPER_CASE
