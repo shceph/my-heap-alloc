@@ -45,6 +45,14 @@ inline static FastAllocSize cache_pop(FastAllocBlock *block) {
     return block->cache[block->cache_size];
 }
 
+inline static bool is_ptr_in_block(const FastAllocBlock *block, void *ptr) {
+    return (bool)(
+
+        (uint8_t *)ptr >= block->data && (FastAllocSize *)ptr < block->cache
+
+    );
+}
+
 inline static void init_block(BlockAllocator *block_alloc,
                               FastAllocBlock **block,
                               FastAllocSizeClass class) {
@@ -162,9 +170,7 @@ void fast_alloc_free(FastAllocator *alloc, void *ptr) {
         (FastAllocBlock *)(ptr_down_aligned + FAST_ALLOC_BLOCK_SIZE -
                            sizeof(FastAllocBlock));
 
-    size_t size = FAST_ALLOC_SIZES[block_metadata->size_class];
-
-    fast_alloc_free_size_aware(alloc, ptr, size);
+    fast_alloc_free_with_size_class(alloc, ptr, block_metadata->size_class);
 }
 
 void fast_alloc_free_size_aware(FastAllocator *alloc, void *ptr, size_t size) {
@@ -175,10 +181,20 @@ void fast_alloc_free_size_aware(FastAllocator *alloc, void *ptr, size_t size) {
     }
 
     FastAllocSizeClass class = size_to_class_lookup[size];
+    fast_alloc_free_with_size_class(alloc, ptr, class);
+}
+
+void fast_alloc_free_with_size_class(FastAllocator *alloc, void *ptr,
+                                     FastAllocSizeClass class) {
     FastAllocBlock *block = alloc->blocks[class];
+
+    while (!is_ptr_in_block(block, ptr) && block != nullptr) {
+        block = block->next_block;
+    }
 
     assert((uint8_t *)ptr >= block->data);
 
     FastAllocSize offset = (uint8_t *)ptr - block->data;
+
     cache_push(block, offset);
 }

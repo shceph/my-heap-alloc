@@ -1,6 +1,6 @@
 #include "fast_alloc_print_layout.h"
 
-#include "../src/fast_allocator/fast_allocator.h"
+#include "../src/fast_allocator/fast_allocator_global_wrapper.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -14,12 +14,10 @@ static constexpr size_t STR_1_SIZE = 32;
 static char str_1[STR_1_SIZE] = "The quick green fox runs slowly";
 
 int main() {
-    constexpr int allocs = 1000;
-    constexpr int ptr_to_free_index = 900;
+    constexpr int allocs = 200;
+    constexpr int ptr_to_free_index = 22;
 
     puts("Initializing fast allocator...");
-
-    FastAllocator alloc = fast_alloc_init();
 
     printf("Allocating %zu bytes %d times and copying string of len = %zu\n",
            STR_SIZE, allocs, STR_SIZE);
@@ -27,7 +25,7 @@ int main() {
     void *ptr_to_free = nullptr;
 
     for (int i = 0; i < allocs; ++i) {
-        void *ptr = fast_alloc_alloc(&alloc, STR_SIZE);
+        void *ptr = falloc(STR_SIZE);
         memcpy(ptr, str, STR_SIZE);
 
         if (i == ptr_to_free_index) {
@@ -39,12 +37,12 @@ int main() {
 
     printf("\nFreeing %d. pointer...\n", ptr_to_free_index);
 
-    fast_alloc_free(&alloc, ptr_to_free);
-    fast_alloc_print_layout(&alloc);
+    ffree(ptr_to_free);
+    fast_alloc_print_layout(falloc_get_instance());
 
     puts("Allocating again, should return pointer equal to the freed one...");
 
-    void *ptr = fast_alloc_alloc(&alloc, STR_SIZE);
+    void *ptr = falloc(STR_SIZE);
 
     assert(ptr == ptr_to_free);
 
@@ -55,7 +53,5 @@ int main() {
 
     printf("\nData at ptr: %s\n", (char *)ptr);
 
-    fast_alloc_print_layout(&alloc);
-
-    fast_alloc_deinit(&alloc);
+    fast_alloc_print_layout(falloc_get_instance());
 }

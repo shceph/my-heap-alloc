@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 
-inline static void print_block_data(FastAllocBlock *block) {
+inline static void print_block_data(const FastAllocBlock *block) {
     printf("data: %p\n", block->data);
     printf("cache: %p\n", (void *)block->cache);
     printf("next block: %p\n", (void *)block->next_block);
@@ -14,7 +14,7 @@ inline static void print_block_data(FastAllocBlock *block) {
     printf("size class: %d\n\n", FAST_ALLOC_SIZES[block->size_class]);
 }
 
-inline static void fast_alloc_print_layout(FastAllocator *alloc) {
+inline static void fast_alloc_print_layout(const FastAllocator *alloc) {
     puts("");
 
     for (int i = 0; i < FAST_ALLOC_NUM_CLASSES; ++i) {

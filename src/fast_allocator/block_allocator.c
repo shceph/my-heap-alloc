@@ -5,6 +5,10 @@
 #include <assert.h>
 #include <stdint.h>
 
+inline static bool is_full(BlockAllocator *block_alloc) {
+    return block_alloc->size - block_alloc->offset < FAST_ALLOC_BLOCK_SIZE;
+}
+
 void *align_up_to_block_size(const void *ptr) {
     uintptr_t intptr = (uintptr_t)ptr;
     uintptr_t bias = ((intptr + (FAST_ALLOC_BLOCK_SIZE - 1)) &
@@ -50,6 +54,8 @@ void block_alloc_deinit(BlockAllocator *block_alloc) {
 }
 
 void *block_alloc_alloc(BlockAllocator *block_alloc) {
+    assert(!is_full(block_alloc));
+
     void *ret = block_alloc->aligned_up_mem + block_alloc->offset;
     block_alloc->offset += FAST_ALLOC_BLOCK_SIZE;
     return ret;

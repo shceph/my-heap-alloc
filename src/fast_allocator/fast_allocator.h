@@ -97,5 +97,7 @@ void fast_alloc_deinit(FastAllocator *alloc);
 void *fast_alloc_alloc(FastAllocator *alloc, size_t size);
 void fast_alloc_free(FastAllocator *alloc, void *ptr);
 void fast_alloc_free_size_aware(FastAllocator *alloc, void *ptr, size_t size);
+void fast_alloc_free_with_size_class(FastAllocator *alloc, void *ptr,
+                                     FastAllocSizeClass class);
 
 #endif // FAST_ALLOCATOR_H
