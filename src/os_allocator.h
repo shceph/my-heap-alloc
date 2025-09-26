@@ -5,6 +5,8 @@
 
 #include <stddef.h>
 
+static constexpr size_t OS_ALLOC_PAGE_SIZE = 0x1000;
+
 // Sets errno on error.
 inline static void *os_alloc(size_t size) {
     void *ptr = mmap(nullptr, size, PROT_READ | PROT_WRITE,

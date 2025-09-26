@@ -1,6 +1,8 @@
 #ifndef FAST_ALLOCATOR_H
 #define FAST_ALLOCATOR_H
 
+#include "block_allocator.h"
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -76,28 +78,6 @@ constexpr FastAllocSizeClass FAST_ALLOC_SIZES[FAST_ALLOC_NUM_CLASSES] = {
     [FAST_ALLOC_CLASS_992] = 992, [FAST_ALLOC_CLASS_1024] = 1024,
 };
 
-constexpr FastAllocSize FAST_ALLOC_PAGES_PER_CLASS[FAST_ALLOC_NUM_CLASSES] = {
-    [FAST_ALLOC_CLASS_8] = 1,   [FAST_ALLOC_CLASS_16] = 1,
-    [FAST_ALLOC_CLASS_24] = 1,  [FAST_ALLOC_CLASS_32] = 1,
-    [FAST_ALLOC_CLASS_48] = 1,  [FAST_ALLOC_CLASS_64] = 1,
-    [FAST_ALLOC_CLASS_80] = 1,  [FAST_ALLOC_CLASS_96] = 1,
-    [FAST_ALLOC_CLASS_112] = 1, [FAST_ALLOC_CLASS_128] = 1,
-    [FAST_ALLOC_CLASS_160] = 1, [FAST_ALLOC_CLASS_192] = 1,
-    [FAST_ALLOC_CLASS_224] = 1, [FAST_ALLOC_CLASS_256] = 1,
-    [FAST_ALLOC_CLASS_288] = 1, [FAST_ALLOC_CLASS_320] = 1,
-    [FAST_ALLOC_CLASS_352] = 1, [FAST_ALLOC_CLASS_384] = 1,
-    [FAST_ALLOC_CLASS_416] = 1, [FAST_ALLOC_CLASS_448] = 1,
-    [FAST_ALLOC_CLASS_480] = 1, [FAST_ALLOC_CLASS_512] = 1,
-    [FAST_ALLOC_CLASS_544] = 1, [FAST_ALLOC_CLASS_576] = 1,
-    [FAST_ALLOC_CLASS_608] = 1, [FAST_ALLOC_CLASS_640] = 1,
-    [FAST_ALLOC_CLASS_672] = 1, [FAST_ALLOC_CLASS_704] = 1,
-    [FAST_ALLOC_CLASS_736] = 1, [FAST_ALLOC_CLASS_768] = 1,
-    [FAST_ALLOC_CLASS_800] = 1, [FAST_ALLOC_CLASS_832] = 1,
-    [FAST_ALLOC_CLASS_864] = 1, [FAST_ALLOC_CLASS_896] = 1,
-    [FAST_ALLOC_CLASS_928] = 1, [FAST_ALLOC_CLASS_960] = 1,
-    [FAST_ALLOC_CLASS_992] = 1, [FAST_ALLOC_CLASS_1024] = 1,
-};
-
 typedef struct FastAllocBlock {
     uint8_t *data;
     FastAllocSize *cache;
@@ -109,11 +89,13 @@ typedef struct FastAllocBlock {
 
 typedef struct {
     FastAllocBlock *blocks[FAST_ALLOC_NUM_CLASSES];
+    BlockAllocator block_alloc;
 } FastAllocator;
 
 FastAllocator fast_alloc_init();
 void fast_alloc_deinit(FastAllocator *alloc);
 void *fast_alloc_alloc(FastAllocator *alloc, size_t size);
-void fast_alloc_free(FastAllocator *alloc, void *ptr, size_t size);
+void fast_alloc_free(FastAllocator *alloc, void *ptr);
+void fast_alloc_free_size_aware(FastAllocator *alloc, void *ptr, size_t size);
 
 #endif // FAST_ALLOCATOR_H

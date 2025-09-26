@@ -1,5 +1,7 @@
 #include "fast_allocator.h"
 
+#include "block_allocator.h"
+
 #include "../os_allocator.h"
 
 #include <assert.h>
@@ -10,15 +12,10 @@
 static constexpr size_t SIZE_TO_CLASS_LOOKUP_SIZE = 2UL * FAST_ALLOC_PAGE_SIZE;
 static FastAllocSize *size_to_class_lookup = nullptr;
 
-inline static FastAllocSize block_size_per_class(FastAllocSizeClass class) {
-    return FAST_ALLOC_PAGE_SIZE * FAST_ALLOC_PAGES_PER_CLASS[class];
-}
-
 inline static void *block_buff_end(const FastAllocBlock *block) {
     assert(block != nullptr);
 
-    return block->data + block_size_per_class(block->size_class) -
-           sizeof(FastAllocBlock);
+    return block->data + FAST_ALLOC_BLOCK_SIZE - sizeof(FastAllocBlock);
 }
 
 inline static uint8_t *block_last_elem(const FastAllocBlock *block) {
@@ -48,17 +45,18 @@ inline static FastAllocSize cache_pop(FastAllocBlock *block) {
     return block->cache[block->cache_size];
 }
 
-inline static void init_block(FastAllocBlock **block,
+inline static void init_block(BlockAllocator *block_alloc,
+                              FastAllocBlock **block,
                               FastAllocSizeClass class) {
     assert(block != nullptr);
     assert(*block == nullptr && "Block already initialized.");
 
-    FastAllocSize sz_to_alloc = block_size_per_class(class);
-    uint8_t *mem = (uint8_t *)os_alloc(sz_to_alloc);
+    uint8_t *mem = (uint8_t *)block_alloc_alloc(block_alloc);
 
     assert(mem != nullptr);
 
-    *block = (FastAllocBlock *)(mem + sz_to_alloc - sizeof(FastAllocBlock));
+    *block = (FastAllocBlock *)(mem + FAST_ALLOC_BLOCK_SIZE -
+                                sizeof(FastAllocBlock));
 
     // Splitting the buffer so it stores both the data and the cache. The cache
     // is just an array of indices. Each index is the offset from the pointer
@@ -69,7 +67,7 @@ inline static void init_block(FastAllocBlock **block,
     // So, the pointer to the start of the cache is data + num_of_elems *
     // elem_size.
 
-    FastAllocSize buff_size = sz_to_alloc - sizeof(FastAllocBlock);
+    FastAllocSize buff_size = FAST_ALLOC_BLOCK_SIZE - sizeof(FastAllocBlock);
     FastAllocSize elem_size = FAST_ALLOC_SIZES[class];
     FastAllocSize cache_idx_size = sizeof(FastAllocSize);
 
@@ -105,27 +103,19 @@ FastAllocator fast_alloc_init() {
         size_to_class_lookup[i] = current_class_entry;
     }
 
+    BlockAllocator block_alloc = block_alloc_init();
+
     FastAllocator alloc;
     memset((void *)alloc.blocks, 0, sizeof(alloc.blocks));
+    alloc.block_alloc = block_alloc;
+
     return alloc;
 }
 
 void fast_alloc_deinit(FastAllocator *alloc) {
     assert(alloc != nullptr);
 
-    for (int i = 0; i < FAST_ALLOC_NUM_CLASSES; ++i) {
-        FastAllocBlock *block = alloc->blocks[i];
-
-        while (block != nullptr) {
-            FastAllocBlock *next = block->next_block;
-
-            FastAllocSize sz = block_size_per_class(block->size_class);
-
-            os_free(block->data, sz);
-
-            block = next;
-        }
-    }
+    block_alloc_deinit(&alloc->block_alloc);
 
     os_free(size_to_class_lookup, SIZE_TO_CLASS_LOOKUP_SIZE);
 }
@@ -141,7 +131,7 @@ void *fast_alloc_alloc(FastAllocator *alloc, size_t size) {
     }
 
     if (alloc->blocks[entry] == nullptr) {
-        init_block(&alloc->blocks[entry], entry);
+        init_block(&alloc->block_alloc, &alloc->blocks[entry], entry);
     }
 
     FastAllocBlock *block = alloc->blocks[entry];
@@ -157,14 +147,27 @@ void *fast_alloc_alloc(FastAllocator *alloc, size_t size) {
         }
 
         if (block->next_block == nullptr) {
-            init_block(&block->next_block, block->size_class);
+            init_block(&alloc->block_alloc, &block->next_block,
+                       block->size_class);
         }
 
         block = block->next_block;
     }
 }
 
-void fast_alloc_free(FastAllocator *alloc, void *ptr, size_t size) {
+void fast_alloc_free(FastAllocator *alloc, void *ptr) {
+    char *ptr_down_aligned = (char *)(align_down_to_block_size(ptr));
+
+    FastAllocBlock *block_metadata =
+        (FastAllocBlock *)(ptr_down_aligned + FAST_ALLOC_BLOCK_SIZE -
+                           sizeof(FastAllocBlock));
+
+    size_t size = FAST_ALLOC_SIZES[block_metadata->size_class];
+
+    fast_alloc_free_size_aware(alloc, ptr, size);
+}
+
+void fast_alloc_free_size_aware(FastAllocator *alloc, void *ptr, size_t size) {
     assert(alloc != nullptr);
 
     if (ptr == nullptr) {
