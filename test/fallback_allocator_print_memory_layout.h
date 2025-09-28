@@ -5,7 +5,7 @@
 
 #include <stdio.h>
 
-void print_allocator_memory_layout(FallbackHeapAllocator *aloc) {
+inline static void print_allocator_memory_layout(FallbackHeapAllocator *aloc) {
     printf("\nallocator data addr: %p\n\n", (void *)aloc->chunk_llist_head);
 
     for (size_t i = 0; i < aloc->region_count; ++i) {

@@ -1,4 +1,4 @@
-#include "test.h"
+#include "fallback_allocator_print_memory_layout.h"
 
 #include "../src/fallback_allocator/fallback_allocator.h"
 
@@ -12,7 +12,7 @@
 #define TEST_STR_SIZE  sizeof(TEST_STRING)
 
 void realloc_test(FallbackHeapAllocator *aloc) {
-    puts("[TEST] Testing heap_realloc");
+    puts("[TEST] Testing fallback_realloc");
 
     int *arr = (int *)fallback_alloc(aloc, ARR0_SIZE * sizeof(int));
 

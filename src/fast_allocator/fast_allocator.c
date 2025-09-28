@@ -4,6 +4,8 @@
 
 #include "../os_allocator.h"
 
+#include <pthread.h>
+
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -11,6 +13,27 @@
 
 static constexpr size_t SIZE_TO_CLASS_LOOKUP_SIZE = 2UL * FAST_ALLOC_PAGE_SIZE;
 static FastAllocSize *size_to_class_lookup = nullptr;
+
+inline static void cross_thread_free(void *ptr);
+inline static void clean_cross_thread_cache(FastAllocator *alloc);
+
+inline static FastAllocBlock *metadata_from_ptr(void *ptr) {
+    char *ptr_down_aligned = (char *)(align_down_to_block_size(ptr));
+
+    FastAllocBlock *block_metadata =
+        (FastAllocBlock *)(ptr_down_aligned + FAST_ALLOC_BLOCK_SIZE -
+                           sizeof(FastAllocBlock));
+
+    return block_metadata;
+}
+
+inline static bool is_ptr_in_allocator(const FastAllocator *alloc, void *ptr) {
+    assert(alloc != nullptr);
+    assert(ptr != nullptr);
+
+    FastAllocBlock *block = metadata_from_ptr(ptr);
+    return block->owner == alloc;
+}
 
 inline static void *block_buff_end(const FastAllocBlock *block) {
     assert(block != nullptr);
@@ -35,16 +58,6 @@ inline static bool block_is_full(const FastAllocBlock *block) {
     );
 }
 
-inline static void cache_push(FastAllocBlock *block, FastAllocSize val) {
-    block->cache[block->cache_size] = val;
-    ++block->cache_size;
-}
-
-inline static FastAllocSize cache_pop(FastAllocBlock *block) {
-    --block->cache_size;
-    return block->cache[block->cache_size];
-}
-
 inline static bool is_ptr_in_block(const FastAllocBlock *block, void *ptr) {
     return (bool)(
 
@@ -53,13 +66,12 @@ inline static bool is_ptr_in_block(const FastAllocBlock *block, void *ptr) {
     );
 }
 
-inline static void init_block(BlockAllocator *block_alloc,
-                              FastAllocBlock **block,
+inline static void init_block(FastAllocator *alloc, FastAllocBlock **block,
                               FastAllocSizeClass class) {
     assert(block != nullptr);
     assert(*block == nullptr && "Block already initialized.");
 
-    uint8_t *mem = (uint8_t *)block_alloc_alloc(block_alloc);
+    uint8_t *mem = (uint8_t *)block_alloc_alloc(&alloc->block_alloc);
 
     assert(mem != nullptr);
 
@@ -91,7 +103,18 @@ inline static void init_block(BlockAllocator *block_alloc,
         .cache_size = 0,
         .size_class = class,
         .next_block = nullptr,
+        .owner = alloc,
     };
+}
+
+inline static void cache_push(FastAllocBlock *block, FastAllocSize val) {
+    block->cache[block->cache_size] = val;
+    ++block->cache_size;
+}
+
+inline static FastAllocSize cache_pop(FastAllocBlock *block) {
+    --block->cache_size;
+    return block->cache[block->cache_size];
 }
 
 FastAllocator fast_alloc_init() {
@@ -116,6 +139,8 @@ FastAllocator fast_alloc_init() {
     FastAllocator alloc;
     memset((void *)alloc.blocks, 0, sizeof(alloc.blocks));
     alloc.block_alloc = block_alloc;
+    pthread_mutex_init(&alloc.cross_thread_cache_lock, nullptr);
+    alloc.cross_thread_cache_size = 0;
 
     return alloc;
 }
@@ -131,6 +156,8 @@ void fast_alloc_deinit(FastAllocator *alloc) {
 void *fast_alloc_alloc(FastAllocator *alloc, size_t size) {
     assert(alloc != nullptr);
 
+    clean_cross_thread_cache(alloc);
+
     FastAllocSizeClass entry = size_to_class_lookup[size];
 
     if (entry == FAST_ALLOC_CLASS_INVALID) {
@@ -139,7 +166,7 @@ void *fast_alloc_alloc(FastAllocator *alloc, size_t size) {
     }
 
     if (alloc->blocks[entry] == nullptr) {
-        init_block(&alloc->block_alloc, &alloc->blocks[entry], entry);
+        init_block(alloc, &alloc->blocks[entry], entry);
     }
 
     FastAllocBlock *block = alloc->blocks[entry];
@@ -155,46 +182,86 @@ void *fast_alloc_alloc(FastAllocator *alloc, size_t size) {
         }
 
         if (block->next_block == nullptr) {
-            init_block(&alloc->block_alloc, &block->next_block,
-                       block->size_class);
+            init_block(alloc, &block->next_block, block->size_class);
         }
 
         block = block->next_block;
     }
 }
 
-void fast_alloc_free(FastAllocator *alloc, void *ptr) {
-    char *ptr_down_aligned = (char *)(align_down_to_block_size(ptr));
-
-    FastAllocBlock *block_metadata =
-        (FastAllocBlock *)(ptr_down_aligned + FAST_ALLOC_BLOCK_SIZE -
-                           sizeof(FastAllocBlock));
-
-    fast_alloc_free_with_size_class(alloc, ptr, block_metadata->size_class);
-}
-
-void fast_alloc_free_size_aware(FastAllocator *alloc, void *ptr, size_t size) {
-    assert(alloc != nullptr);
-
-    if (ptr == nullptr) {
-        return;
+FastAllocFreeRet fast_alloc_free(FastAllocator *alloc, void *ptr) {
+    if (alloc == nullptr || !is_ptr_in_allocator(alloc, ptr)) {
+        cross_thread_free(ptr);
+        return PTR_NOT_OWNED_BY_PASSED_ALLOCATOR_INSTANCE;
     }
 
-    FastAllocSizeClass class = size_to_class_lookup[size];
-    fast_alloc_free_with_size_class(alloc, ptr, class);
+    clean_cross_thread_cache(alloc);
+
+    FastAllocBlock *block_metadata = metadata_from_ptr(ptr);
+
+    assert((uint8_t *)ptr >= block_metadata->data);
+
+    FastAllocSize offset = (uint8_t *)ptr - block_metadata->data;
+
+    cache_push(block_metadata, offset);
+
+    return OK;
 }
 
-void fast_alloc_free_with_size_class(FastAllocator *alloc, void *ptr,
-                                     FastAllocSizeClass class) {
-    FastAllocBlock *block = alloc->blocks[class];
+inline static void cross_thread_cache_push(FastAllocator *diff_thread_alloc,
+                                           void *ptr) {
+    int err_code =
+        pthread_mutex_lock(&diff_thread_alloc->cross_thread_cache_lock);
+    assert(err_code == 0);
 
-    while (!is_ptr_in_block(block, ptr) && block != nullptr) {
-        block = block->next_block;
+    diff_thread_alloc
+        ->cross_thread_cache[diff_thread_alloc->cross_thread_cache_size] = ptr;
+    ++diff_thread_alloc->cross_thread_cache_size;
+
+    err_code =
+        pthread_mutex_unlock(&diff_thread_alloc->cross_thread_cache_lock);
+    assert(err_code == 0);
+}
+
+inline static void *cross_thread_cache_pop(FastAllocator *alloc) {
+    void *ret;
+
+    int err_code = pthread_mutex_lock(&alloc->cross_thread_cache_lock);
+    assert(err_code == 0);
+
+    --alloc->cross_thread_cache_size;
+    assert(alloc->cross_thread_cache_size >= 0);
+
+    ret = alloc->cross_thread_cache[alloc->cross_thread_cache_size];
+
+    err_code = pthread_mutex_unlock(&alloc->cross_thread_cache_lock);
+    assert(err_code == 0);
+
+    return ret;
+}
+
+inline static size_t get_cross_thread_cache_size(FastAllocator *alloc) {
+    int err_code = pthread_mutex_lock(&alloc->cross_thread_cache_lock);
+    assert(err_code == 0);
+
+    size_t size = alloc->cross_thread_cache_size;
+
+    err_code = pthread_mutex_unlock(&alloc->cross_thread_cache_lock);
+    assert(err_code == 0);
+
+    return size;
+}
+
+// TODO: Check if the cross thread cache is full.
+inline static void cross_thread_free(void *ptr) {
+    FastAllocBlock *metadata = metadata_from_ptr(ptr);
+    cross_thread_cache_push(metadata->owner, ptr);
+}
+
+inline static void clean_cross_thread_cache(FastAllocator *alloc) {
+    while (get_cross_thread_cache_size(alloc) != 0) {
+        FastAllocFreeRet ret =
+            fast_alloc_free(alloc, cross_thread_cache_pop(alloc));
+        assert(ret != PTR_NOT_OWNED_BY_PASSED_ALLOCATOR_INSTANCE);
     }
-
-    assert((uint8_t *)ptr >= block->data);
-
-    FastAllocSize offset = (uint8_t *)ptr - block->data;
-
-    cache_push(block, offset);
 }

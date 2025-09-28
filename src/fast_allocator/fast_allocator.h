@@ -3,6 +3,8 @@
 
 #include "block_allocator.h"
 
+#include <pthread.h>
+
 #include <stddef.h>
 #include <stdint.h>
 
@@ -78,6 +80,8 @@ constexpr FastAllocSizeClass FAST_ALLOC_SIZES[FAST_ALLOC_NUM_CLASSES] = {
     [FAST_ALLOC_CLASS_992] = 992, [FAST_ALLOC_CLASS_1024] = 1024,
 };
 
+struct FastAllocator;
+
 typedef struct FastAllocBlock {
     uint8_t *data;
     FastAllocSize *cache;
@@ -85,19 +89,26 @@ typedef struct FastAllocBlock {
     FastAllocSize cache_size;
     FastAllocSizeClass size_class;
     struct FastAllocBlock *next_block;
+    struct FastAllocator *owner;
 } FastAllocBlock;
 
-typedef struct {
+typedef struct FastAllocator {
     FastAllocBlock *blocks[FAST_ALLOC_NUM_CLASSES];
     BlockAllocator block_alloc;
+    pthread_mutex_t cross_thread_cache_lock;
+    size_t cross_thread_cache_size;
+    void *cross_thread_cache[];
 } FastAllocator;
 
 FastAllocator fast_alloc_init();
 void fast_alloc_deinit(FastAllocator *alloc);
 void *fast_alloc_alloc(FastAllocator *alloc, size_t size);
-void fast_alloc_free(FastAllocator *alloc, void *ptr);
-void fast_alloc_free_size_aware(FastAllocator *alloc, void *ptr, size_t size);
-void fast_alloc_free_with_size_class(FastAllocator *alloc, void *ptr,
-                                     FastAllocSizeClass class);
+
+typedef enum {
+    OK,
+    PTR_NOT_OWNED_BY_PASSED_ALLOCATOR_INSTANCE,
+} FastAllocFreeRet;
+
+FastAllocFreeRet fast_alloc_free(FastAllocator *alloc, void *ptr);
 
 #endif // FAST_ALLOCATOR_H

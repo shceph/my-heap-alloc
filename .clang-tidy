@@ -32,3 +32,5 @@ CheckOptions:
     value: UPPER_CASE
   - key: readability-identifier-naming.GlobalConstantCase
     value: UPPER_CASE
+  - key: misc-include-cleaner.IgnoreHeaders
+    value: "pthread.h;bits/pthreadtypes.h"

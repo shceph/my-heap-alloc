@@ -2,27 +2,26 @@
 
 #include "fast_allocator.h"
 
+#include "../os_allocator.h"
+
 #include <assert.h>
 #include <stddef.h>
 
-thread_local FastAllocator allocator;
-thread_local bool is_allocator_inited = false;
+thread_local FastAllocator *allocator = nullptr;
 
 void *falloc(size_t size) {
-    if (!is_allocator_inited) {
-        allocator = fast_alloc_init();
-        is_allocator_inited = true;
+    if (allocator == nullptr) {
+        allocator = (FastAllocator *)os_alloc(FAST_ALLOC_PAGE_SIZE);
+        *allocator = fast_alloc_init();
     }
 
-    return fast_alloc_alloc(&allocator, size);
+    return fast_alloc_alloc(allocator, size);
 }
 
 void ffree(void *ptr) {
-    assert(is_allocator_inited);
-
-    fast_alloc_free(&allocator, ptr);
+    fast_alloc_free(allocator, ptr);
 }
 
 FastAllocator *falloc_get_instance() {
-    return &allocator;
+    return allocator;
 }
