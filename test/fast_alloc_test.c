@@ -19,7 +19,7 @@ int main() {
 
     puts("Initializing fast allocator...");
 
-    FastAllocator alloc = fast_alloc_init();
+    struct FaAllocator alloc = fa_init();
 
     printf("Allocating %zu bytes %d times and copying string of len = %zu\n",
            STR_SIZE, allocs, STR_SIZE);
@@ -27,7 +27,7 @@ int main() {
     void *ptr_to_free = nullptr;
 
     for (int i = 0; i < allocs; ++i) {
-        void *ptr = fast_alloc_alloc(&alloc, STR_SIZE);
+        void *ptr = fa_alloc(&alloc, STR_SIZE);
         memcpy(ptr, str, STR_SIZE);
 
         if (i == ptr_to_free_index) {
@@ -44,7 +44,7 @@ int main() {
 
     puts("Allocating again, should return pointer equal to the freed one...");
 
-    void *ptr = fast_alloc_alloc(&alloc, STR_SIZE);
+    void *ptr = fa_alloc(&alloc, STR_SIZE);
 
     assert(ptr == ptr_to_free);
 
@@ -57,5 +57,5 @@ int main() {
 
     fast_alloc_print_layout(&alloc);
 
-    fast_alloc_deinit(&alloc);
+    fa_deinit(&alloc);
 }

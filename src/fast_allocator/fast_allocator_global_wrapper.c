@@ -2,26 +2,33 @@
 
 #include "fast_allocator.h"
 
+#include "../error.h"
 #include "../os_allocator.h"
 
 #include <assert.h>
 #include <stddef.h>
 
-thread_local FastAllocator *allocator = nullptr;
+thread_local struct FaAllocator *allocator = nullptr;
 
 void *falloc(size_t size) {
     if (allocator == nullptr) {
-        allocator = (FastAllocator *)os_alloc(FAST_ALLOC_PAGE_SIZE);
-        *allocator = fast_alloc_init();
+        allocator = (struct FaAllocator *)os_alloc(FA_PAGE_SIZE);
+
+        if (allocator == nullptr) {
+            fa_print_error("os_alloc() faield in falloc()");
+            assert(false);
+        }
+
+        *allocator = fa_init();
     }
 
-    return fast_alloc_alloc(allocator, size);
+    return fa_alloc(allocator, size);
 }
 
 void ffree(void *ptr) {
     fast_alloc_free(allocator, ptr);
 }
 
-FastAllocator *falloc_get_instance() {
+struct FaAllocator *falloc_get_instance() {
     return allocator;
 }

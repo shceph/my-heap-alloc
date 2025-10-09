@@ -19,9 +19,18 @@ inline static void *os_alloc(size_t size) {
     return ptr;
 }
 
+constexpr int OS_FREE_OK = 0;
+constexpr int OS_FREE_FAIL = 1;
+
 // Returns error code from munmap, sets errno on error.
 inline static int os_free(void *ptr, size_t size) {
-    return munmap(ptr, size);
+    int ret = munmap(ptr, size);
+
+    if (ret == -1) {
+        return OS_FREE_FAIL;
+    }
+
+    return OS_FREE_OK;
 }
 
 #endif // OS_ALLOCATOR_H

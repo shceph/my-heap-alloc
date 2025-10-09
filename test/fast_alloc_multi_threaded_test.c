@@ -7,17 +7,17 @@
 #include <stdio.h>
 #include <string.h>
 
-FastAllocator alloc;
+struct FaAllocator alloc;
 
 void *alloc_then_free_thread_unsafe(void * /*arg*/) {
     constexpr int alloc_count = 800;
-    constexpr FastAllocSizeClass class = FAST_ALLOC_CLASS_48;
-    constexpr FastAllocSize size = FAST_ALLOC_SIZES[class];
+    constexpr enum FaSizeClass class = FA_CLASS_48;
+    constexpr FaSize size = FA_SIZES[class];
 
     void *ptrs[alloc_count];
 
     for (int i = 0; i < alloc_count; ++i) {
-        ptrs[i] = fast_alloc_alloc(&alloc, size);
+        ptrs[i] = fa_alloc(&alloc, size);
         memset(ptrs[i], 0, size);
     }
 
@@ -30,8 +30,8 @@ void *alloc_then_free_thread_unsafe(void * /*arg*/) {
 
 void *alloc_then_free_thread_safe(void * /*arg*/) {
     constexpr int alloc_count = 800;
-    constexpr FastAllocSizeClass class = FAST_ALLOC_CLASS_48;
-    constexpr FastAllocSize size = FAST_ALLOC_SIZES[class];
+    constexpr enum FaSizeClass class = FA_CLASS_48;
+    constexpr FaSize size = FA_SIZES[class];
 
     void *ptrs[alloc_count];
 
@@ -67,7 +67,7 @@ int main(int argc, const char *argv[]) {
     if (run_unsafe_variant) {
         puts("Runs unsafe variant.");
         func_ptr = alloc_then_free_thread_unsafe;
-        alloc = fast_alloc_init();
+        alloc = fa_init();
     }
 
     puts("Doing a bunch of allocations and frees in multiple threads to check "

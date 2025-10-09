@@ -7,6 +7,6 @@
 
 void *falloc(size_t size);
 void ffree(void *ptr);
-FastAllocator *falloc_get_instance();
+struct FaAllocator *falloc_get_instance();
 
 #endif // FAST_ALLOCATOR_GLOBAL_WRAPPER

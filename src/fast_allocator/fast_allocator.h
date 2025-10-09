@@ -1,114 +1,151 @@
 #ifndef FAST_ALLOCATOR_H
 #define FAST_ALLOCATOR_H
 
+#include "bitmap.h"
 #include "block_allocator.h"
+#include "cache.h"
 
 #include <pthread.h>
 
 #include <stddef.h>
 #include <stdint.h>
 
-typedef uint32_t FastAllocSize;
+typedef uint32_t FaSize;
 
-constexpr FastAllocSize FAST_ALLOC_PAGE_SIZE = 0x1000;
+constexpr FaSize FA_PAGE_SIZE = 0x1000;
 
-typedef enum {
-    FAST_ALLOC_CLASS_8,
-    FAST_ALLOC_CLASS_16,
-    FAST_ALLOC_CLASS_24,
-    FAST_ALLOC_CLASS_32,
-    FAST_ALLOC_CLASS_48,
-    FAST_ALLOC_CLASS_64,
-    FAST_ALLOC_CLASS_80,
-    FAST_ALLOC_CLASS_96,
-    FAST_ALLOC_CLASS_112,
-    FAST_ALLOC_CLASS_128,
-    FAST_ALLOC_CLASS_160,
-    FAST_ALLOC_CLASS_192,
-    FAST_ALLOC_CLASS_224,
-    FAST_ALLOC_CLASS_256,
-    FAST_ALLOC_CLASS_288,
-    FAST_ALLOC_CLASS_320,
-    FAST_ALLOC_CLASS_352,
-    FAST_ALLOC_CLASS_384,
-    FAST_ALLOC_CLASS_416,
-    FAST_ALLOC_CLASS_448,
-    FAST_ALLOC_CLASS_480,
-    FAST_ALLOC_CLASS_512,
-    FAST_ALLOC_CLASS_544,
-    FAST_ALLOC_CLASS_576,
-    FAST_ALLOC_CLASS_608,
-    FAST_ALLOC_CLASS_640,
-    FAST_ALLOC_CLASS_672,
-    FAST_ALLOC_CLASS_704,
-    FAST_ALLOC_CLASS_736,
-    FAST_ALLOC_CLASS_768,
-    FAST_ALLOC_CLASS_800,
-    FAST_ALLOC_CLASS_832,
-    FAST_ALLOC_CLASS_864,
-    FAST_ALLOC_CLASS_896,
-    FAST_ALLOC_CLASS_928,
-    FAST_ALLOC_CLASS_960,
-    FAST_ALLOC_CLASS_992,
-    FAST_ALLOC_CLASS_1024,
-    FAST_ALLOC_NUM_CLASSES,
-    FAST_ALLOC_CLASS_INVALID,
-} FastAllocSizeClass;
-
-constexpr FastAllocSize FAST_ALLOC_CLASS_MIN = 8;
-constexpr FastAllocSize FAST_ALLOC_CLASS_MAX = 1024;
-
-constexpr FastAllocSizeClass FAST_ALLOC_SIZES[FAST_ALLOC_NUM_CLASSES] = {
-    [FAST_ALLOC_CLASS_8] = 8,     [FAST_ALLOC_CLASS_16] = 16,
-    [FAST_ALLOC_CLASS_24] = 24,   [FAST_ALLOC_CLASS_32] = 32,
-    [FAST_ALLOC_CLASS_48] = 48,   [FAST_ALLOC_CLASS_64] = 64,
-    [FAST_ALLOC_CLASS_80] = 80,   [FAST_ALLOC_CLASS_96] = 96,
-    [FAST_ALLOC_CLASS_112] = 112, [FAST_ALLOC_CLASS_128] = 128,
-    [FAST_ALLOC_CLASS_160] = 160, [FAST_ALLOC_CLASS_192] = 192,
-    [FAST_ALLOC_CLASS_224] = 224, [FAST_ALLOC_CLASS_256] = 256,
-    [FAST_ALLOC_CLASS_288] = 288, [FAST_ALLOC_CLASS_320] = 320,
-    [FAST_ALLOC_CLASS_352] = 352, [FAST_ALLOC_CLASS_384] = 384,
-    [FAST_ALLOC_CLASS_416] = 416, [FAST_ALLOC_CLASS_448] = 448,
-    [FAST_ALLOC_CLASS_480] = 480, [FAST_ALLOC_CLASS_512] = 512,
-    [FAST_ALLOC_CLASS_544] = 544, [FAST_ALLOC_CLASS_576] = 576,
-    [FAST_ALLOC_CLASS_608] = 608, [FAST_ALLOC_CLASS_640] = 640,
-    [FAST_ALLOC_CLASS_672] = 672, [FAST_ALLOC_CLASS_704] = 704,
-    [FAST_ALLOC_CLASS_736] = 736, [FAST_ALLOC_CLASS_768] = 768,
-    [FAST_ALLOC_CLASS_800] = 800, [FAST_ALLOC_CLASS_832] = 832,
-    [FAST_ALLOC_CLASS_864] = 864, [FAST_ALLOC_CLASS_896] = 896,
-    [FAST_ALLOC_CLASS_928] = 928, [FAST_ALLOC_CLASS_960] = 960,
-    [FAST_ALLOC_CLASS_992] = 992, [FAST_ALLOC_CLASS_1024] = 1024,
+enum FaSizeClass {
+    FA_CLASS_8,
+    FA_CLASS_16,
+    FA_CLASS_24,
+    FA_CLASS_32,
+    FA_CLASS_48,
+    FA_CLASS_64,
+    FA_CLASS_80,
+    FA_CLASS_96,
+    FA_CLASS_112,
+    FA_CLASS_128,
+    FA_CLASS_160,
+    FA_CLASS_192,
+    FA_CLASS_224,
+    FA_CLASS_256,
+    FA_CLASS_288,
+    FA_CLASS_320,
+    FA_CLASS_352,
+    FA_CLASS_384,
+    FA_CLASS_416,
+    FA_CLASS_448,
+    FA_CLASS_480,
+    FA_CLASS_512,
+    FA_CLASS_544,
+    FA_CLASS_576,
+    FA_CLASS_608,
+    FA_CLASS_640,
+    FA_CLASS_672,
+    FA_CLASS_704,
+    FA_CLASS_736,
+    FA_CLASS_768,
+    FA_CLASS_800,
+    FA_CLASS_832,
+    FA_CLASS_864,
+    FA_CLASS_896,
+    FA_CLASS_928,
+    FA_CLASS_960,
+    FA_CLASS_992,
+    FA_CLASS_1024,
+    FA_NUM_CLASSES,
+    FA_CLASS_INVALID,
 };
 
-struct FastAllocator;
+constexpr FaSize FA_CLASS_MIN = 8;
+constexpr FaSize FA_CLASS_MAX = 1024;
 
-typedef struct FastAllocBlock {
+constexpr FaSize FA_SIZES[FA_NUM_CLASSES] = {
+    [FA_CLASS_8] = 8,     [FA_CLASS_16] = 16,     [FA_CLASS_24] = 24,
+    [FA_CLASS_32] = 32,   [FA_CLASS_48] = 48,     [FA_CLASS_64] = 64,
+    [FA_CLASS_80] = 80,   [FA_CLASS_96] = 96,     [FA_CLASS_112] = 112,
+    [FA_CLASS_128] = 128, [FA_CLASS_160] = 160,   [FA_CLASS_192] = 192,
+    [FA_CLASS_224] = 224, [FA_CLASS_256] = 256,   [FA_CLASS_288] = 288,
+    [FA_CLASS_320] = 320, [FA_CLASS_352] = 352,   [FA_CLASS_384] = 384,
+    [FA_CLASS_416] = 416, [FA_CLASS_448] = 448,   [FA_CLASS_480] = 480,
+    [FA_CLASS_512] = 512, [FA_CLASS_544] = 544,   [FA_CLASS_576] = 576,
+    [FA_CLASS_608] = 608, [FA_CLASS_640] = 640,   [FA_CLASS_672] = 672,
+    [FA_CLASS_704] = 704, [FA_CLASS_736] = 736,   [FA_CLASS_768] = 768,
+    [FA_CLASS_800] = 800, [FA_CLASS_832] = 832,   [FA_CLASS_864] = 864,
+    [FA_CLASS_896] = 896, [FA_CLASS_928] = 928,   [FA_CLASS_960] = 960,
+    [FA_CLASS_992] = 992, [FA_CLASS_1024] = 1024,
+};
+
+// Using this to multiply with reciprocals instead of dividing, which is faster.
+constexpr float FA_SIZE_CLASS_RECIPROCALS[FA_NUM_CLASSES] = {
+    [FA_CLASS_8] = 1.0F / (float)FA_SIZES[FA_CLASS_8],
+    [FA_CLASS_16] = 1.0F / (float)FA_SIZES[FA_CLASS_16],
+    [FA_CLASS_24] = 1.0F / (float)FA_SIZES[FA_CLASS_24],
+    [FA_CLASS_32] = 1.0F / (float)FA_SIZES[FA_CLASS_32],
+    [FA_CLASS_48] = 1.0F / (float)FA_SIZES[FA_CLASS_48],
+    [FA_CLASS_64] = 1.0F / (float)FA_SIZES[FA_CLASS_64],
+    [FA_CLASS_80] = 1.0F / (float)FA_SIZES[FA_CLASS_80],
+    [FA_CLASS_96] = 1.0F / (float)FA_SIZES[FA_CLASS_96],
+    [FA_CLASS_112] = 1.0F / (float)FA_SIZES[FA_CLASS_112],
+    [FA_CLASS_128] = 1.0F / (float)FA_SIZES[FA_CLASS_128],
+    [FA_CLASS_160] = 1.0F / (float)FA_SIZES[FA_CLASS_160],
+    [FA_CLASS_192] = 1.0F / (float)FA_SIZES[FA_CLASS_192],
+    [FA_CLASS_224] = 1.0F / (float)FA_SIZES[FA_CLASS_224],
+    [FA_CLASS_256] = 1.0F / (float)FA_SIZES[FA_CLASS_256],
+    [FA_CLASS_288] = 1.0F / (float)FA_SIZES[FA_CLASS_288],
+    [FA_CLASS_320] = 1.0F / (float)FA_SIZES[FA_CLASS_320],
+    [FA_CLASS_352] = 1.0F / (float)FA_SIZES[FA_CLASS_352],
+    [FA_CLASS_384] = 1.0F / (float)FA_SIZES[FA_CLASS_384],
+    [FA_CLASS_416] = 1.0F / (float)FA_SIZES[FA_CLASS_416],
+    [FA_CLASS_448] = 1.0F / (float)FA_SIZES[FA_CLASS_448],
+    [FA_CLASS_480] = 1.0F / (float)FA_SIZES[FA_CLASS_480],
+    [FA_CLASS_512] = 1.0F / (float)FA_SIZES[FA_CLASS_512],
+    [FA_CLASS_544] = 1.0F / (float)FA_SIZES[FA_CLASS_544],
+    [FA_CLASS_576] = 1.0F / (float)FA_SIZES[FA_CLASS_576],
+    [FA_CLASS_608] = 1.0F / (float)FA_SIZES[FA_CLASS_608],
+    [FA_CLASS_640] = 1.0F / (float)FA_SIZES[FA_CLASS_640],
+    [FA_CLASS_672] = 1.0F / (float)FA_SIZES[FA_CLASS_672],
+    [FA_CLASS_704] = 1.0F / (float)FA_SIZES[FA_CLASS_704],
+    [FA_CLASS_736] = 1.0F / (float)FA_SIZES[FA_CLASS_736],
+    [FA_CLASS_768] = 1.0F / (float)FA_SIZES[FA_CLASS_768],
+    [FA_CLASS_800] = 1.0F / (float)FA_SIZES[FA_CLASS_800],
+    [FA_CLASS_832] = 1.0F / (float)FA_SIZES[FA_CLASS_832],
+    [FA_CLASS_864] = 1.0F / (float)FA_SIZES[FA_CLASS_864],
+    [FA_CLASS_896] = 1.0F / (float)FA_SIZES[FA_CLASS_896],
+    [FA_CLASS_928] = 1.0F / (float)FA_SIZES[FA_CLASS_928],
+    [FA_CLASS_960] = 1.0F / (float)FA_SIZES[FA_CLASS_960],
+    [FA_CLASS_992] = 1.0F / (float)FA_SIZES[FA_CLASS_992],
+    [FA_CLASS_1024] = 1.0F / (float)FA_SIZES[FA_CLASS_1024],
+};
+
+struct FaAllocator;
+
+struct FaBlock {
     uint8_t *data;
-    FastAllocSize *cache;
-    FastAllocSize data_size;
-    FastAllocSize cache_size;
-    FastAllocSizeClass size_class;
-    struct FastAllocBlock *next_block;
-    struct FastAllocator *owner;
-} FastAllocBlock;
+    enum FaSizeClass size_class;
+    struct Bitmap bmap;
+    struct Cache cache;
+    struct FaBlock *next_block;
+    struct FaAllocator *owner;
+};
 
-typedef struct FastAllocator {
-    FastAllocBlock *blocks[FAST_ALLOC_NUM_CLASSES];
-    BlockAllocator block_alloc;
+struct FaAllocator {
+    struct FaBlock *blocks[FA_NUM_CLASSES];
+    struct BlockAllocator block_alloc;
     pthread_mutex_t cross_thread_cache_lock;
     size_t cross_thread_cache_size;
     void *cross_thread_cache[];
-} FastAllocator;
+};
 
-FastAllocator fast_alloc_init();
-void fast_alloc_deinit(FastAllocator *alloc);
-void *fast_alloc_alloc(FastAllocator *alloc, size_t size);
+struct FaAllocator fa_init();
+void fa_deinit(struct FaAllocator *alloc);
+void *fa_alloc(struct FaAllocator *alloc, size_t size);
 
-typedef enum {
+enum FaFreeRet {
     OK,
     PTR_NOT_OWNED_BY_PASSED_ALLOCATOR_INSTANCE,
-} FastAllocFreeRet;
+};
 
-FastAllocFreeRet fast_alloc_free(FastAllocator *alloc, void *ptr);
+enum FaFreeRet fast_alloc_free(struct FaAllocator *alloc, void *ptr);
 
-#endif // FAST_ALLOCATOR_H
+#endif // FAATOR_H

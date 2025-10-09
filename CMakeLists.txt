@@ -8,11 +8,14 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
+add_library(error STATIC ${CMAKE_SOURCE_DIR}/src/error.c)
+
 file(GLOB FALLBACK_ALLOC_SOURCES ${CMAKE_SOURCE_DIR}/src/fallback_allocator/*.c)
 add_library(fallback_alloc SHARED ${FALLBACK_ALLOC_SOURCES})
 
 file(GLOB FAST_ALLOC_SOURCES ${CMAKE_SOURCE_DIR}/src/fast_allocator/*.c)
 add_library(fast_alloc SHARED ${FAST_ALLOC_SOURCES})
+target_link_libraries(fast_alloc PRIVATE error)
 
 file(GLOB TEST_SOURCES "test/*.c")
 
