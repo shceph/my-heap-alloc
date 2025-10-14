@@ -1,13 +1,22 @@
 #include "block_allocator.h"
 
+#include "stack_definition.h"
+
 #include "../error.h"
 #include "../os_allocator.h"
 
 #include <assert.h>
+#include <stddef.h>
 #include <stdint.h>
 
+STACK_DEFINE(BaCacheElem, BaCacheSizeType, BaCache)
+
+#define GET_NUM_OF_ELEMS(BLOCK_ALLOC_VAR) ((BLOCK_ALLOC_VAR).cache.capacity)
+
 inline static bool is_full(struct BlockAllocator *block_alloc) {
-    return block_alloc->size - block_alloc->offset < FA_BLOCK_SIZE;
+    size_t block_alloc_buff_size =
+        (GET_NUM_OF_ELEMS(*block_alloc)) * FA_BLOCK_SIZE;
+    return block_alloc->offset >= block_alloc_buff_size - FA_BLOCK_SIZE;
 }
 
 void *align_up_to_block_size(const void *ptr) {
@@ -25,30 +34,42 @@ void *align_down_to_block_size(const void *ptr) {
     return (char *)ptr - bias;
 }
 
-struct BlockAllocator block_alloc_init() {
+struct BlockAllocator balloc_init() {
+    // num_of_elems * BLOCK_SIZE + num_of_elems * sizeof(CacheElem) = buff_size
+    // num_of_elems * (BLOCK_SIZE + sizeof(CacheElem)) = buff_size
+    // num_of_elems = buff_size / (BLOCK_SIZE + sizeof(CacheElem))
+
     void *mem = os_alloc(DEFAULT_ALLOC_SIZE);
 
-    if (mem == nullptr) {
+    if (!mem) {
         fa_print_errno("os_alloc() failed in block_alloc_init()");
         assert(false);
     }
 
     void *aligned_up_mem = align_up_to_block_size(mem);
 
+    size_t unused_mem_size = (char *)aligned_up_mem - (char *)mem;
+    size_t buff_size = DEFAULT_ALLOC_SIZE - unused_mem_size;
+    size_t num_of_elems = buff_size / (FA_BLOCK_SIZE + sizeof(BaCacheElem));
+
+    void *cache_mem = (char *)aligned_up_mem + (num_of_elems * FA_BLOCK_SIZE);
+
     struct BlockAllocator block_alloc = {
-        .mem = mem,
+        .os_allocated_mem = mem,
         .aligned_up_mem = aligned_up_mem,
-        .size = DEFAULT_ALLOC_SIZE,
+        .os_allocated_size = DEFAULT_ALLOC_SIZE,
         .offset = 0,
+        .cache = BaCache_init(cache_mem, num_of_elems),
         .next = nullptr,
     };
 
     return block_alloc;
 }
 
-void block_alloc_deinit(struct BlockAllocator *block_alloc) {
+void balloc_deinit(struct BlockAllocator *block_alloc) {
     while (block_alloc != nullptr) {
-        int ret = os_free(block_alloc->mem, block_alloc->size);
+        int ret = os_free(block_alloc->os_allocated_mem,
+                          block_alloc->os_allocated_size);
 
         if (ret == OS_FREE_FAIL) {
             fa_print_errno("os_free() failed in block_alloc_deinit()");
@@ -59,14 +80,23 @@ void block_alloc_deinit(struct BlockAllocator *block_alloc) {
     }
 }
 
-void *block_alloc_alloc(struct BlockAllocator *block_alloc) {
-    if (is_full(block_alloc)) {
-        (void)0;
-    }
-
+void *balloc_alloc(struct BlockAllocator *block_alloc) {
     assert(!is_full(block_alloc));
 
-    void *ret = block_alloc->aligned_up_mem + block_alloc->offset;
+    void *ret;
+    enum StackError err = BaCache_try_pop(&block_alloc->cache, &ret);
+
+    if (err == STACK_OK) {
+        return ret;
+    }
+
+    ret = block_alloc->aligned_up_mem + block_alloc->offset;
     block_alloc->offset += FA_BLOCK_SIZE;
     return ret;
+}
+
+void balloc_free(struct BlockAllocator *block_alloc, void *block) {
+    enum StackError err = BaCache_try_push(&block_alloc->cache, block);
+    (void)err;
+    assert(err != STACK_FULL);
 }

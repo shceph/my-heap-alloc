@@ -39,7 +39,7 @@ int main() {
 
     printf("\nFreeing %d. pointer...\n", ptr_to_free_index);
 
-    fast_alloc_free(&alloc, ptr_to_free);
+    fa_free(&alloc, ptr_to_free);
     fast_alloc_print_layout(&alloc);
 
     puts("Allocating again, should return pointer equal to the freed one...");

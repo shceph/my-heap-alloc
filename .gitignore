@@ -1049,3 +1049,4 @@ dkms.conf
 
 scripts/make.sh
 scripts/cmake.sh
+test/performance_test.c

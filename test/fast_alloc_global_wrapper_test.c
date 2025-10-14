@@ -57,7 +57,7 @@ int main() {
 
     printf("\nData at ptr: %s\n", (char *)ptr);
 
-    print_bitmap(&falloc_get_instance()->blocks[class]->bmap);
+    print_bitmap(falloc_get_instance()->blocks[class]);
 
     puts("Freeing all...");
 
@@ -67,5 +67,5 @@ int main() {
 
     fast_alloc_print_layout(falloc_get_instance());
 
-    print_bitmap(&falloc_get_instance()->blocks[class]->bmap);
+    print_bitmap(falloc_get_instance()->blocks[class]);
 }

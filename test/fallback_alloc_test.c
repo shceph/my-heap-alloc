@@ -9,7 +9,7 @@
 #define ARR0_SIZE      8UL
 #define ARR1_SIZE      16UL
 #define TEST_STRING    "a really long string"
-#define TEST_STR_SIZE  sizeof(TEST_STRING)
+#define TEST_STR_SIZE  21
 
 void realloc_test(FallbackHeapAllocator *aloc) {
     puts("[TEST] Testing fallback_realloc");

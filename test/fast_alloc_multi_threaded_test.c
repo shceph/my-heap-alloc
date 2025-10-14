@@ -12,7 +12,7 @@ struct FaAllocator alloc;
 void *alloc_then_free_thread_unsafe(void * /*arg*/) {
     constexpr int alloc_count = 800;
     constexpr enum FaSizeClass class = FA_CLASS_48;
-    constexpr FaSize size = FA_SIZES[class];
+    FaSize size = FA_SIZES[class];
 
     void *ptrs[alloc_count];
 
@@ -22,7 +22,7 @@ void *alloc_then_free_thread_unsafe(void * /*arg*/) {
     }
 
     for (int i = 0; i < alloc_count; ++i) {
-        fast_alloc_free(&alloc, ptrs[i]);
+        fa_free(&alloc, ptrs[i]);
     }
 
     return nullptr;
@@ -31,7 +31,7 @@ void *alloc_then_free_thread_unsafe(void * /*arg*/) {
 void *alloc_then_free_thread_safe(void * /*arg*/) {
     constexpr int alloc_count = 800;
     constexpr enum FaSizeClass class = FA_CLASS_48;
-    constexpr FaSize size = FA_SIZES[class];
+    FaSize size = FA_SIZES[class];
 
     void *ptrs[alloc_count];
 
@@ -101,4 +101,6 @@ int main(int argc, const char *argv[]) {
     puts("Newly allocated pointer is the same as the one freed from another "
          "thread, which should mean that cross thread freeing is working "
          "correctly.");
+
+    ffree(ptr2);
 }

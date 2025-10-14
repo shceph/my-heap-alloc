@@ -22,14 +22,20 @@ inline static void print_block_data(const struct FaBlock *block) {
 
 inline static void fast_alloc_print_layout(const struct FaAllocator *alloc) {
     puts("");
+    bool block_in_use_found = false;
 
     for (int i = 0; i < FA_NUM_CLASSES; ++i) {
         struct FaBlock *block = alloc->blocks[i];
 
         while (block != nullptr) {
+            block_in_use_found = true;
             print_block_data(block);
             block = block->next_block;
         }
+    }
+
+    if (!block_in_use_found) {
+        puts("The allocator is empty.");
     }
 }
 
@@ -44,11 +50,16 @@ inline static void print_size_t_binary(size_t value) {
     (void)putchar('\n');
 }
 
-inline static void print_bitmap(const struct Bitmap *bmap) {
+inline static void print_bitmap(const struct FaBlock *block) {
     (void)putchar('\n');
 
-    for (size_t i = 0; i < ceil_int_div_by_64(bmap->num_elems); ++i) {
-        print_size_t_binary(bmap->map[i]);
+    if (block == nullptr) {
+        puts("The block is null, so no bitmap printed.");
+        return;
+    }
+
+    for (size_t i = 0; i < ceil_int_div_by_64(block->bmap.num_elems); ++i) {
+        print_size_t_binary(block->bmap.map[i]);
     }
 
     (void)putchar('\n');

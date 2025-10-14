@@ -3,7 +3,7 @@
 
 #include "bitmap.h"
 #include "block_allocator.h"
-#include "cache.h"
+#include "stack_declaration.h"
 
 #include <pthread.h>
 
@@ -120,12 +120,22 @@ constexpr float FA_SIZE_CLASS_RECIPROCALS[FA_NUM_CLASSES] = {
 
 struct FaAllocator;
 
+typedef uint16_t CacheOffset;
+typedef uint16_t CacheSizeType;
+
+constexpr CacheOffset CACHE_OFFSET_MAX = UINT16_MAX;
+
+STACK_DECLARE(CacheOffset, CacheSizeType, CacheStack)
+
 struct FaBlock {
     uint8_t *data;
+    uint32_t total_alloc_count;
+    uint32_t max_alloc_count;
     enum FaSizeClass size_class;
     struct Bitmap bmap;
-    struct Cache cache;
+    struct CacheStack cache;
     struct FaBlock *next_block;
+    struct FaBlock *prev_block;
     struct FaAllocator *owner;
 };
 
@@ -146,6 +156,8 @@ enum FaFreeRet {
     PTR_NOT_OWNED_BY_PASSED_ALLOCATOR_INSTANCE,
 };
 
-enum FaFreeRet fast_alloc_free(struct FaAllocator *alloc, void *ptr);
+enum FaFreeRet fa_free(struct FaAllocator *alloc, void *ptr);
+void *fa_realloc(struct FaAllocator *alloc, void *ptr, size_t size);
+size_t fa_memsize(void *ptr);
 
 #endif // FAATOR_H

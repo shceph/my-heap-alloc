@@ -11,10 +11,10 @@
 thread_local struct FaAllocator *allocator = nullptr;
 
 void *falloc(size_t size) {
-    if (allocator == nullptr) {
+    if (!allocator) {
         allocator = (struct FaAllocator *)os_alloc(FA_PAGE_SIZE);
 
-        if (allocator == nullptr) {
+        if (!allocator) {
             fa_print_error("os_alloc() faield in falloc()");
             assert(false);
         }
@@ -26,7 +26,15 @@ void *falloc(size_t size) {
 }
 
 void ffree(void *ptr) {
-    fast_alloc_free(allocator, ptr);
+    fa_free(allocator, ptr);
+}
+
+void *frealloc(void *ptr, size_t size) {
+    return fa_realloc(allocator, ptr, size);
+}
+
+size_t fmemsize(void *ptr) {
+    return fa_memsize(ptr);
 }
 
 struct FaAllocator *falloc_get_instance() {
