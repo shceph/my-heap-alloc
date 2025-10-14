@@ -1049,4 +1049,5 @@ dkms.conf
 
 scripts/make.sh
 scripts/cmake.sh
+scripts/cmake-release.sh
 test/performance_test.c
