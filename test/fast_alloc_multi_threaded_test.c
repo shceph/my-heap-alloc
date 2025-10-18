@@ -1,5 +1,5 @@
-#include "../src/fast_allocator/fast_allocator.h"
-#include "../src/fast_allocator/fast_allocator_global_wrapper.h"
+#include "../src/fast_allocator/fast_alloc.h"
+#include "../src/fast_allocator/fast_alloc_global_wrapper.h"
 
 #include <pthread.h>
 

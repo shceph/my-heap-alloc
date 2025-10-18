@@ -2,7 +2,7 @@
 #define FAST_ALLOC_PRINT_LAYOUT_H
 
 #include "../src/fast_allocator/bitmap.h"
-#include "../src/fast_allocator/fast_allocator.h"
+#include "../src/fast_allocator/fast_alloc.h"
 
 #include <stdio.h>
 

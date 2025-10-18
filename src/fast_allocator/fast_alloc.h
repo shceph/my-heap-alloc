@@ -1,8 +1,8 @@
-#ifndef FAST_ALLOCATOR_H
-#define FAST_ALLOCATOR_H
+#ifndef FAST_ALLOC_H
+#define FAST_ALLOC_H
 
 #include "bitmap.h"
-#include "block_allocator.h"
+#include "fixed_alloc.h"
 #include "stack_declaration.h"
 
 #include <pthread.h>
@@ -141,7 +141,7 @@ struct FaBlock {
 
 struct FaAllocator {
     struct FaBlock *blocks[FA_NUM_CLASSES];
-    struct BlockAllocator block_alloc;
+    struct FixedAllocator fixed_alloc;
     pthread_mutex_t cross_thread_cache_lock;
     size_t cross_thread_cache_size;
     void *cross_thread_cache[];
@@ -160,4 +160,4 @@ enum FaFreeRet fa_free(struct FaAllocator *alloc, void *ptr);
 void *fa_realloc(struct FaAllocator *alloc, void *ptr, size_t size);
 size_t fa_memsize(void *ptr);
 
-#endif // FAATOR_H
+#endif // FAST_ALLOC_H

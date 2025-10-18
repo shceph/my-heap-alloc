@@ -1,6 +1,6 @@
 #include "fast_alloc_print_layout.h"
 
-#include "../src/fast_allocator/fast_allocator.h"
+#include "../src/fast_allocator/fast_alloc.h"
 
 #include <assert.h>
 #include <stddef.h>

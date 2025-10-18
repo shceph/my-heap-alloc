@@ -1,7 +1,7 @@
-#include "fast_allocator.h"
+#include "fast_alloc.h"
 
 #include "bitmap.h"
-#include "block_allocator.h"
+#include "fixed_alloc.h"
 #include "stack_definition.h"
 
 #include "../error.h"
@@ -147,7 +147,7 @@ inline static void block_init(struct FaAllocator *alloc, struct FaBlock *parent,
     assert(block != nullptr);
     assert(*block == nullptr && "Block already initialized.");
 
-    uint8_t *mem = (uint8_t *)balloc_alloc(&alloc->block_alloc);
+    uint8_t *mem = (uint8_t *)fixed_alloc(&alloc->fixed_alloc);
     assert(mem != nullptr);
 
     *block = (struct FaBlock *)(mem + FA_BLOCK_SIZE) - 1;
@@ -186,7 +186,7 @@ inline static void block_deinit(struct FaAllocator *alloc,
         block->next_block->prev_block = block->prev_block;
     }
 
-    balloc_free(&alloc->block_alloc, block->data);
+    fixed_free(&alloc->fixed_alloc, block->data);
 }
 
 struct FaAllocator fa_init() {
@@ -198,11 +198,11 @@ struct FaAllocator fa_init() {
         setup_num_of_elems_per_class_lookup();
     }
 
-    struct BlockAllocator block_alloc = balloc_init();
+    struct FixedAllocator fixed_alloc = fixed_alloc_init(FA_BLOCK_SIZE);
 
     struct FaAllocator alloc;
     memset((void *)alloc.blocks, 0, sizeof(alloc.blocks));
-    alloc.block_alloc = block_alloc;
+    alloc.fixed_alloc = fixed_alloc;
     pthread_mutex_init(&alloc.cross_thread_cache_lock, nullptr);
     alloc.cross_thread_cache_size = 0;
 
@@ -212,7 +212,7 @@ struct FaAllocator fa_init() {
 void fa_deinit(struct FaAllocator *alloc) {
     assert(alloc != nullptr);
 
-    balloc_deinit(&alloc->block_alloc);
+    fixed_alloc_deinit(&alloc->fixed_alloc);
 }
 
 void *fa_alloc(struct FaAllocator *alloc, size_t size) {

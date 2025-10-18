@@ -1,7 +1,7 @@
-#ifndef FAST_ALLOCATOR_GLOBAL_WRAPPER
-#define FAST_ALLOCATOR_GLOBAL_WRAPPER
+#ifndef FAST_ALLOC_GLOBAL_WRAPPER_H
+#define FAST_ALLOC_GLOBAL_WRAPPER_H
 
-#include "fast_allocator.h"
+#include "fast_alloc.h"
 
 #include <stddef.h>
 
@@ -11,4 +11,4 @@ void *frealloc(void *ptr, size_t size);
 size_t fmemsize(void *ptr);
 struct FaAllocator *falloc_get_instance();
 
-#endif // FAST_ALLOCATOR_GLOBAL_WRAPPER
+#endif // FAST_ALLOC_GLOBAL_WRAPPER_H

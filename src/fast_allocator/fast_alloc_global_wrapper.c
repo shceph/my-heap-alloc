@@ -1,6 +1,6 @@
-#include "fast_allocator_global_wrapper.h"
+#include "fast_alloc_global_wrapper.h"
 
-#include "fast_allocator.h"
+#include "fast_alloc.h"
 
 #include "../error.h"
 #include "../os_allocator.h"
