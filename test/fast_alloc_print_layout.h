@@ -6,11 +6,11 @@
 
 #include <stdio.h>
 
-inline static BitmapSize ceil_int_div_by_64(BitmapSize num) {
+static inline BitmapSize ceil_int_div_by_64(BitmapSize num) {
     return (num + BITMAP_SIZE_BIT_COUNT - 1) >> LOG2_NUM_BITS_IN_BITMAP_SIZE;
 }
 
-inline static void print_block_data(const struct FaBlock *block) {
+static inline void print_block_data(const struct FaBlock *block) {
     printf("data: %p\n", block->data);
     // printf("cache: %p\n", (void *)block->cache);
     printf("bitmap: %p\n", (void *)&block->bmap);
@@ -20,7 +20,7 @@ inline static void print_block_data(const struct FaBlock *block) {
     printf("size class: %d\n\n", FA_SIZES[block->size_class]);
 }
 
-inline static void fast_alloc_print_layout(const struct FaAllocator *alloc) {
+static inline void fast_alloc_print_layout(const struct FaAllocator *alloc) {
     puts("");
     bool block_in_use_found = false;
 
@@ -39,7 +39,7 @@ inline static void fast_alloc_print_layout(const struct FaAllocator *alloc) {
     }
 }
 
-inline static void print_size_t_binary(size_t value) {
+static inline void print_size_t_binary(size_t value) {
     // Number of bits in size_t
     int bits = sizeof(size_t) * CHAR_BIT;
 
@@ -50,7 +50,7 @@ inline static void print_size_t_binary(size_t value) {
     (void)putchar('\n');
 }
 
-inline static void print_bitmap(const struct FaBlock *block) {
+static inline void print_bitmap(const struct FaBlock *block) {
     (void)putchar('\n');
 
     if (block == nullptr) {

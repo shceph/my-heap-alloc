@@ -5,6 +5,7 @@ Checks: >
     android-cloexec-*,
     readability-*,
     -readability-identifier-length,
+    -readability-implicit-bool-conversion,
     portability-*,
     bugprone-*,
     cert-*,

@@ -6,7 +6,40 @@
 #include <stddef.h>
 #include <stdint.h>
 
-// TODO: Cleanup, add a function that prints out rtree in the test.
+static inline uint8_t get_byte_from_ptr(void *ptr, int byte_index) {
+    union {
+        void *ptr;
+        uint8_t bytes[sizeof(void *)];
+    } converter = {.ptr = ptr};
+
+    return converter.bytes[sizeof(void *) - 1 - byte_index];
+}
+
+static inline struct RtreeNode *node_init(struct Rtree *rtree) {
+    assert(rtree->node_allocator.unit_size == sizeof(struct RtreeNode));
+
+    struct RtreeNode *node = fixed_alloc(&rtree->node_allocator);
+
+    for (int i = 0; i <= UINT8_MAX; ++i) {
+        node->entries[i].next = nullptr;
+    }
+
+    node->node_count = 0;
+
+    return node;
+}
+
+static inline void node_deinit(struct Rtree *rtree, struct RtreeNode *node) {
+    fixed_free(&rtree->node_allocator, node);
+}
+
+static inline size_t *leaf_alloc(struct Rtree *rtree) {
+    return fixed_alloc(&rtree->leaf_allocator);
+}
+
+static inline void leaf_free(struct Rtree *rtree, size_t *leaf) {
+    return fixed_free(&rtree->leaf_allocator, leaf);
+}
 
 struct Rtree rtree_init() {
     return (struct Rtree){
@@ -20,49 +53,27 @@ void rtree_deinit(struct Rtree *rtree) {
     fixed_alloc_deinit(&rtree->node_allocator);
 }
 
-struct RtreeNode *node_init(struct FixedAllocator *node_allocator) {
-    assert(node_allocator->unit_size == sizeof(struct RtreeNode));
-
-    struct RtreeNode *node = fixed_alloc(node_allocator);
-
-    for (int i = 0; i <= UINT8_MAX; ++i) {
-        node->entries[i].next = nullptr;
-    }
-
-    node->node_count = 0;
-
-    return node;
-}
-
-void node_deinit(struct Rtree *rtree, struct RtreeNode *node) {
-    fixed_free(&rtree->node_allocator, node);
-}
-
 void rtree_push_ptr(struct Rtree *rtree, void *ptr, size_t allocated_size) {
-    union Converter converter = {
-        .addr = ptr,
-    };
-
     if (!rtree->head) {
-        rtree->head = node_init(&rtree->node_allocator);
+        rtree->head = node_init(rtree);
     }
 
     struct RtreeNode *curr_entry = rtree->head;
 
     for (int i = 0; i < RTREE_DEPTH - 1; ++i) {
-        uint8_t byte = converter.bytes[i];
+        uint8_t byte = get_byte_from_ptr(ptr, i);
 
         if (!curr_entry->entries[byte].next) {
-            curr_entry->entries[byte].next = node_init(&rtree->node_allocator);
+            curr_entry->entries[byte].next = node_init(rtree);
             ++curr_entry->node_count;
         }
 
         curr_entry = curr_entry->entries[byte].next;
     }
 
-    uint8_t byte = converter.bytes[RTREE_DEPTH - 1];
+    uint8_t byte = get_byte_from_ptr(ptr, RTREE_DEPTH - 1);
 
-    assert(curr_entry->entries[byte].leaf == nullptr);
+    assert(!curr_entry->entries[byte].leaf);
 
     if (!curr_entry->entries[byte].leaf) {
         curr_entry->entries[byte].leaf = fixed_alloc(&rtree->leaf_allocator);
@@ -72,11 +83,7 @@ void rtree_push_ptr(struct Rtree *rtree, void *ptr, size_t allocated_size) {
     *curr_entry->entries[byte].leaf = allocated_size;
 }
 
-void rtree_remove_ptr(struct Rtree *rtree, void *ptr) {
-    union Converter converter = {
-        .addr = ptr,
-    };
-
+void rtree_remove_ptr(struct Rtree *rtree, void *ptr, size_t *out_stored_leaf) {
     struct RtreeNode *nodes[RTREE_DEPTH];
 
     nodes[0] = rtree->head;
@@ -84,16 +91,20 @@ void rtree_remove_ptr(struct Rtree *rtree, void *ptr) {
     for (int i = 1; i < RTREE_DEPTH; ++i) {
         assert(nodes[i - 1]);
 
-        uint8_t byte = converter.bytes[i - 1];
+        uint8_t byte = get_byte_from_ptr(ptr, i - 1);
+
         nodes[i] = nodes[i - 1]->entries[byte].next;
     }
 
-    uint8_t byte = converter.bytes[RTREE_DEPTH - 1];
+    uint8_t byte = get_byte_from_ptr(ptr, RTREE_DEPTH - 1);
 
     assert(nodes[RTREE_DEPTH - 1]->entries[byte].leaf);
 
-    fixed_free(&rtree->leaf_allocator,
-               nodes[RTREE_DEPTH - 1]->entries[byte].leaf);
+    if (out_stored_leaf) {
+        *out_stored_leaf = *nodes[RTREE_DEPTH - 1]->entries[byte].leaf;
+    }
+
+    leaf_free(rtree, nodes[RTREE_DEPTH - 1]->entries[byte].leaf);
 
     nodes[RTREE_DEPTH - 1]->entries[byte].leaf = nullptr;
     --nodes[RTREE_DEPTH - 1]->node_count;
@@ -103,7 +114,7 @@ void rtree_remove_ptr(struct Rtree *rtree, void *ptr) {
             continue;
         }
 
-        uint8_t byte = converter.bytes[i - 1];
+        uint8_t byte = get_byte_from_ptr(ptr, i - 1);
 
         node_deinit(rtree, nodes[i]);
         nodes[i - 1]->entries[byte].next = nullptr;
@@ -116,10 +127,6 @@ void rtree_remove_ptr(struct Rtree *rtree, void *ptr) {
 }
 
 bool rtree_contains(struct Rtree *rtree, void *ptr) {
-    union Converter converter = {
-        .addr = ptr,
-    };
-
     struct RtreeNode *node = rtree->head;
 
     if (!node) {
@@ -127,7 +134,7 @@ bool rtree_contains(struct Rtree *rtree, void *ptr) {
     }
 
     for (int i = 0; i < RTREE_DEPTH - 1; ++i) {
-        union RtreeEntry entry = node->entries[converter.bytes[i]];
+        union RtreeEntry entry = node->entries[get_byte_from_ptr(ptr, i)];
 
         if (!entry.next) {
             return false;
@@ -136,15 +143,12 @@ bool rtree_contains(struct Rtree *rtree, void *ptr) {
         node = entry.next;
     }
 
-    return node->entries[converter.bytes[RTREE_DEPTH - 1]].leaf != nullptr;
+    return node->entries[get_byte_from_ptr(ptr, RTREE_DEPTH - 1)].leaf !=
+           nullptr;
 }
 
 bool rtree_retrieve_size_if_contains(struct Rtree *rtree, void *ptr,
                                      size_t *out) {
-    union Converter converter = {
-        .addr = ptr,
-    };
-
     struct RtreeNode *node = rtree->head;
 
     if (!node) {
@@ -152,7 +156,7 @@ bool rtree_retrieve_size_if_contains(struct Rtree *rtree, void *ptr,
     }
 
     for (int i = 0; i < RTREE_DEPTH - 1; ++i) {
-        union RtreeEntry entry = node->entries[converter.bytes[i]];
+        union RtreeEntry entry = node->entries[get_byte_from_ptr(ptr, i)];
 
         if (!entry.next) {
             return false;
@@ -161,7 +165,7 @@ bool rtree_retrieve_size_if_contains(struct Rtree *rtree, void *ptr,
         node = entry.next;
     }
 
-    size_t *leaf = node->entries[converter.bytes[RTREE_DEPTH - 1]].leaf;
+    size_t *leaf = node->entries[get_byte_from_ptr(ptr, RTREE_DEPTH - 1)].leaf;
 
     if (!leaf) {
         return false;

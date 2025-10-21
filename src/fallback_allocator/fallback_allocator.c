@@ -10,11 +10,11 @@
 #include <stdio.h>
 #include <string.h>
 
-inline static size_t min_size(size_t a, size_t b) {
+static inline size_t min_size(size_t a, size_t b) {
     return a < b ? a : b;
 }
 
-inline static size_t max_size(size_t a, size_t b) {
+static inline size_t max_size(size_t a, size_t b) {
     return a > b ? a : b;
 }
 

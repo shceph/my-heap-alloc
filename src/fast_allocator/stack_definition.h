@@ -10,7 +10,7 @@ enum StackError {
 };
 
 #define STACK_DEFINE(DATA_TYPE, SIZE_TYPE, NAME)                               \
-    inline static struct NAME NAME##_init(void *mem, SIZE_TYPE capacity) {     \
+    static inline struct NAME NAME##_init(void *mem, SIZE_TYPE capacity) {     \
         return (struct NAME){                                                  \
             .data = (DATA_TYPE *)mem,                                          \
             .size = 0,                                                         \
@@ -18,7 +18,7 @@ enum StackError {
         };                                                                     \
     }                                                                          \
                                                                                \
-    inline static enum StackError NAME##_try_push(struct NAME *self,           \
+    static inline enum StackError NAME##_try_push(struct NAME *self,           \
                                                   DATA_TYPE data) {            \
         if (self->size >= self->capacity) {                                    \
             return STACK_FULL;                                                 \
@@ -28,12 +28,12 @@ enum StackError {
         return STACK_OK;                                                       \
     }                                                                          \
                                                                                \
-    inline static void NAME##_push(struct NAME *self, DATA_TYPE data) {        \
+    static inline void NAME##_push(struct NAME *self, DATA_TYPE data) {        \
         assert(self->size < self->capacity);                                   \
         self->data[self->size++] = data;                                       \
     }                                                                          \
                                                                                \
-    inline static enum StackError NAME##_try_pop(                              \
+    static inline enum StackError NAME##_try_pop(                              \
         struct NAME *self, /* NOLINTNEXTLINE(bugprone-macro-parentheses)*/     \
         DATA_TYPE *out) {                                                      \
         if (self->size == 0) {                                                 \
@@ -44,7 +44,7 @@ enum StackError {
         return STACK_OK;                                                       \
     }                                                                          \
                                                                                \
-    inline static DATA_TYPE NAME##_pop(struct NAME *self) {                    \
+    static inline DATA_TYPE NAME##_pop(struct NAME *self) {                    \
         assert(self->size > 0);                                                \
         return self->data[--self->size];                                       \
     }

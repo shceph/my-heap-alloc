@@ -5,11 +5,11 @@
 #include <stdint.h>
 #include <string.h>
 
-inline static BitmapSize ceil_int_div_by_64(BitmapSize num) {
+static inline BitmapSize ceil_int_div_by_64(BitmapSize num) {
     return (num + BITMAP_SIZE_BIT_COUNT - 1) >> LOG2_NUM_BITS_IN_BITMAP_SIZE;
 }
 
-inline static BitmapSize ceil_int_div_by_8(BitmapSize num) {
+static inline BitmapSize ceil_int_div_by_8(BitmapSize num) {
     // NOLINTNEXTLINE(readability-magic-numbers)
     return (num + 7) >> 3;
 }

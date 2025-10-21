@@ -13,7 +13,7 @@ STACK_DEFINE(FixedAllocCacheElem, FixedAllocCacheSizeType, FixedAllocCache)
 
 #define GET_NUM_OF_ELEMS(FIXED_ALLOC_VAR) ((FIXED_ALLOC_VAR).cache.capacity)
 
-inline static bool is_full(struct FixedAllocator *fixed_alloc) {
+static inline bool is_full(struct FixedAllocator *fixed_alloc) {
     size_t fixed_alloc_buff_size =
         (GET_NUM_OF_ELEMS(*fixed_alloc)) * fixed_alloc->unit_size;
 
@@ -21,7 +21,7 @@ inline static bool is_full(struct FixedAllocator *fixed_alloc) {
            fixed_alloc_buff_size - fixed_alloc->unit_size;
 }
 
-inline static void *align_up_to_unit_size(const void *ptr, size_t unit_size) {
+static inline void *align_up_to_unit_size(const void *ptr, size_t unit_size) {
     uintptr_t intptr = (uintptr_t)ptr;
     uintptr_t bias = ((intptr + (unit_size - 1)) & ~(unit_size - 1)) - intptr;
 

@@ -2,6 +2,7 @@
 
 #include "bitmap.h"
 #include "fixed_alloc.h"
+#include "rtree.h"
 #include "stack_definition.h"
 
 #include "../error.h"
@@ -22,7 +23,7 @@ static constexpr size_t SIZE_TO_CLASS_LOOKUP_SIZE = 2UL * FA_PAGE_SIZE;
 static FaSize *size_to_class_lookup = nullptr;
 static FaSize *num_of_elems_per_class_lookup = nullptr;
 
-inline static void setup_size_to_class_lookup() {
+static inline void setup_size_to_class_lookup() {
     assert(!size_to_class_lookup);
 
     size_to_class_lookup = (FaSize *)os_alloc(SIZE_TO_CLASS_LOOKUP_SIZE);
@@ -43,7 +44,7 @@ inline static void setup_size_to_class_lookup() {
     }
 }
 
-inline static void setup_num_of_elems_per_class_lookup() {
+static inline void setup_num_of_elems_per_class_lookup() {
     assert(num_of_elems_per_class_lookup == nullptr);
 
     num_of_elems_per_class_lookup = (FaSize *)os_alloc(FA_PAGE_SIZE);
@@ -80,11 +81,11 @@ inline static void setup_num_of_elems_per_class_lookup() {
     }
 }
 
-inline static bool is_aligned(size_t val, size_t align) {
+static inline bool is_aligned(size_t val, size_t align) {
     return (val & (align - 1)) == 0;
 }
 
-inline static void handle_incrementing_alloc_counter(struct FaBlock *block) {
+static inline void handle_incrementing_alloc_counter(struct FaBlock *block) {
     ++block->total_alloc_count;
 
     if (block->total_alloc_count > block->max_alloc_count) {
@@ -97,7 +98,7 @@ static constexpr bool SHOULD_DESTROY_BLOCK = true;
 
 // If the ret vaule is SHOULD_DESTROY_BLOCK (aka true), the block shall be
 // destroyed.
-inline static bool handle_decrementing_alloc_counter(struct FaBlock *block) {
+static inline bool handle_decrementing_alloc_counter(struct FaBlock *block) {
     --block->total_alloc_count;
 
     constexpr int block_destroy_max_allocs_threshold = 10;
@@ -106,10 +107,10 @@ inline static bool handle_decrementing_alloc_counter(struct FaBlock *block) {
                   block->max_alloc_count >= block_destroy_max_allocs_threshold);
 }
 
-inline static void cross_thread_free(void *ptr);
-inline static void clear_cross_thread_cache(struct FaAllocator *alloc);
+static inline void cross_thread_free(void *ptr);
+static inline void clear_cross_thread_cache(struct FaAllocator *alloc);
 
-inline static struct FaBlock *metadata_from_ptr(void *ptr) {
+static inline struct FaBlock *metadata_from_ptr(void *ptr) {
     char *ptr_down_aligned = (char *)align_down_to_block_size(ptr);
 
     struct FaBlock *block_metadata =
@@ -119,7 +120,7 @@ inline static struct FaBlock *metadata_from_ptr(void *ptr) {
     return block_metadata;
 }
 
-inline static bool is_ptr_in_allocator(const struct FaAllocator *alloc,
+static inline bool is_ptr_in_allocator(const struct FaAllocator *alloc,
                                        void *ptr) {
     assert(alloc != nullptr);
     assert(ptr != nullptr);
@@ -128,13 +129,13 @@ inline static bool is_ptr_in_allocator(const struct FaAllocator *alloc,
     return block->owner == alloc;
 }
 
-inline static void *block_buff_end(const struct FaBlock *block) {
+static inline void *block_buff_end(const struct FaBlock *block) {
     assert(block != nullptr);
 
     return block->data + FA_BLOCK_SIZE - sizeof(struct FaBlock);
 }
 
-inline static bool is_ptr_in_block(const struct FaBlock *block, void *ptr) {
+static inline bool is_ptr_in_block(const struct FaBlock *block, void *ptr) {
     return (bool)(
 
         (uint8_t *)ptr >= block->data && (size_t *)ptr < block->bmap.map
@@ -142,7 +143,7 @@ inline static bool is_ptr_in_block(const struct FaBlock *block, void *ptr) {
     );
 }
 
-inline static void block_init(struct FaAllocator *alloc, struct FaBlock *parent,
+static inline void block_init(struct FaAllocator *alloc, struct FaBlock *parent,
                               struct FaBlock **block, enum FaSizeClass class) {
     assert(block != nullptr);
     assert(*block == nullptr && "Block already initialized.");
@@ -174,7 +175,7 @@ inline static void block_init(struct FaAllocator *alloc, struct FaBlock *parent,
     };
 }
 
-inline static void block_deinit(struct FaAllocator *alloc,
+static inline void block_deinit(struct FaAllocator *alloc,
                                 struct FaBlock *block) {
     if (block->prev_block == nullptr) {
         alloc->blocks[block->size_class] = block->next_block;
@@ -187,6 +188,24 @@ inline static void block_deinit(struct FaAllocator *alloc,
     }
 
     fixed_free(&alloc->fixed_alloc, block->data);
+}
+
+static inline void *alloc_big(struct FaAllocator *alloc, size_t size) {
+    void *ptr = os_alloc(size);
+
+    if (!ptr) {
+        return nullptr;
+    }
+
+    rtree_push_ptr(&alloc->rtree, ptr, size);
+
+    return ptr;
+}
+
+static inline void free_big(struct FaAllocator *alloc, void *ptr) {
+    size_t allocated_size = 0;
+    rtree_remove_ptr(&alloc->rtree, ptr, &allocated_size);
+    os_free(ptr, allocated_size);
 }
 
 struct FaAllocator fa_init() {
@@ -203,6 +222,7 @@ struct FaAllocator fa_init() {
     struct FaAllocator alloc;
     memset((void *)alloc.blocks, 0, sizeof(alloc.blocks));
     alloc.fixed_alloc = fixed_alloc;
+    alloc.rtree = rtree_init();
     pthread_mutex_init(&alloc.cross_thread_cache_lock, nullptr);
     alloc.cross_thread_cache_size = 0;
 
@@ -217,9 +237,12 @@ void fa_deinit(struct FaAllocator *alloc) {
 
 void *fa_alloc(struct FaAllocator *alloc, size_t size) {
     assert(alloc != nullptr);
-    assert(size <= FA_CLASS_MAX && "size too big, yet to implement");
 
     clear_cross_thread_cache(alloc);
+
+    if (size > FA_CLASS_MAX) {
+        return alloc_big(alloc, size);
+    }
 
     enum FaSizeClass class = size_to_class_lookup[size];
 
@@ -260,6 +283,11 @@ void *fa_alloc(struct FaAllocator *alloc, size_t size) {
 }
 
 enum FaFreeRet fa_free(struct FaAllocator *alloc, void *ptr) {
+    if (alloc && rtree_contains(&alloc->rtree, ptr)) {
+        free_big(alloc, ptr);
+        return OK;
+    }
+
     if (!alloc || !is_ptr_in_allocator(alloc, ptr)) {
         cross_thread_free(ptr);
         return PTR_NOT_OWNED_BY_PASSED_ALLOCATOR_INSTANCE;
@@ -321,7 +349,7 @@ size_t fa_memsize(void *ptr) {
     return FA_SIZES[block->size_class];
 }
 
-inline static void
+static inline void
 cross_thread_cache_push(struct FaAllocator *diff_thread_alloc, void *ptr) {
     int err_code =
         pthread_mutex_lock(&diff_thread_alloc->cross_thread_cache_lock);
@@ -336,7 +364,7 @@ cross_thread_cache_push(struct FaAllocator *diff_thread_alloc, void *ptr) {
     assert(err_code == 0);
 }
 
-inline static void *cross_thread_cache_pop(struct FaAllocator *alloc) {
+static inline void *cross_thread_cache_pop(struct FaAllocator *alloc) {
     void *ret;
 
     int err_code = pthread_mutex_lock(&alloc->cross_thread_cache_lock);
@@ -353,7 +381,7 @@ inline static void *cross_thread_cache_pop(struct FaAllocator *alloc) {
     return ret;
 }
 
-inline static size_t get_cross_thread_cache_size(struct FaAllocator *alloc) {
+static inline size_t get_cross_thread_cache_size(struct FaAllocator *alloc) {
     int err_code = pthread_mutex_lock(&alloc->cross_thread_cache_lock);
     assert(err_code == 0);
 
@@ -366,12 +394,12 @@ inline static size_t get_cross_thread_cache_size(struct FaAllocator *alloc) {
 }
 
 // TODO: Check if the cross thread cache is full.
-inline static void cross_thread_free(void *ptr) {
+static inline void cross_thread_free(void *ptr) {
     struct FaBlock *metadata = metadata_from_ptr(ptr);
     cross_thread_cache_push(metadata->owner, ptr);
 }
 
-inline static void clear_cross_thread_cache(struct FaAllocator *alloc) {
+static inline void clear_cross_thread_cache(struct FaAllocator *alloc) {
     while (get_cross_thread_cache_size(alloc) != 0) {
         enum FaFreeRet ret = fa_free(alloc, cross_thread_cache_pop(alloc));
         assert(ret != PTR_NOT_OWNED_BY_PASSED_ALLOCATOR_INSTANCE);

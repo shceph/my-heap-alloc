@@ -3,6 +3,7 @@
 
 #include "bitmap.h"
 #include "fixed_alloc.h"
+#include "rtree.h"
 #include "stack_declaration.h"
 
 #include <pthread.h>
@@ -142,6 +143,7 @@ struct FaBlock {
 struct FaAllocator {
     struct FaBlock *blocks[FA_NUM_CLASSES];
     struct FixedAllocator fixed_alloc;
+    struct Rtree rtree;
     pthread_mutex_t cross_thread_cache_lock;
     size_t cross_thread_cache_size;
     void *cross_thread_cache[];
