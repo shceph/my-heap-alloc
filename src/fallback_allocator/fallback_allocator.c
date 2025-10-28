@@ -66,8 +66,7 @@ void fallback_allocator_destroy(FallbackHeapAllocator *aloc) {
     }
 }
 
-static bool fbck_allocator_add_region(FallbackHeapAllocator *aloc,
-                                      size_t needed_size) {
+static bool add_region(FallbackHeapAllocator *aloc, size_t needed_size) {
     if (aloc->region_count >= FALLBACK_MAX_REGIONS) {
         (void)fprintf(
             stderr, "fbck_allocator_add_region: No more regions available.\n");
@@ -121,7 +120,7 @@ void *fallback_alloc(FallbackHeapAllocator *aloc, size_t size) {
         }
     }
 
-    if (!fbck_allocator_add_region(aloc, size)) {
+    if (!add_region(aloc, size)) {
         return nullptr;
     }
 

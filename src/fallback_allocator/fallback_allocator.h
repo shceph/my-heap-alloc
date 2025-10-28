@@ -7,7 +7,7 @@
 #include <stdalign.h>
 #include <stddef.h>
 
-typedef struct {
+typedef struct FallbackAlloc {
     FallbackChunk *chunk_llist_head;
     FallbackRegion regions[FALLBACK_MAX_REGIONS];
     size_t total_size;

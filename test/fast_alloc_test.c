@@ -1,6 +1,6 @@
 #include "fast_alloc_print_layout.h"
 
-#include "../src/fast_allocator/fast_alloc.h"
+#include "../src/slab_alloc.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -19,7 +19,7 @@ int main() {
 
     puts("Initializing fast allocator...");
 
-    struct FaAllocator alloc = fa_init();
+    struct SlabAlloc alloc = slab_alloc_init(nullptr);
 
     printf("Allocating %zu bytes %d times and copying string of len = %zu\n",
            STR_SIZE, allocs, STR_SIZE);
@@ -27,7 +27,7 @@ int main() {
     void *ptr_to_free = nullptr;
 
     for (int i = 0; i < allocs; ++i) {
-        void *ptr = fa_alloc(&alloc, STR_SIZE);
+        void *ptr = slab_alloc(&alloc, STR_SIZE);
         memcpy(ptr, str, STR_SIZE);
 
         if (i == ptr_to_free_index) {
@@ -39,12 +39,12 @@ int main() {
 
     printf("\nFreeing %d. pointer...\n", ptr_to_free_index);
 
-    fa_free(&alloc, ptr_to_free);
-    fast_alloc_print_layout(&alloc);
+    slab_free(&alloc, ptr_to_free);
+    slab_alloc_print_layout(&alloc);
 
     puts("Allocating again, should return pointer equal to the freed one...");
 
-    void *ptr = fa_alloc(&alloc, STR_SIZE);
+    void *ptr = slab_alloc(&alloc, STR_SIZE);
 
     assert(ptr == ptr_to_free);
 
@@ -55,7 +55,7 @@ int main() {
 
     printf("\nData at ptr: %s\n", (char *)ptr);
 
-    fast_alloc_print_layout(&alloc);
+    slab_alloc_print_layout(&alloc);
 
-    fa_deinit(&alloc);
+    slab_alloc_deinit(&alloc);
 }

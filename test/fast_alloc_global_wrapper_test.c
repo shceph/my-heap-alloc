@@ -1,7 +1,7 @@
 #include "fast_alloc_print_layout.h"
 
-#include "../src/fast_allocator/fast_alloc.h"
-#include "../src/fast_allocator/fast_alloc_global_wrapper.h"
+#include "../src/falloc.h"
+#include "../src/slab_alloc.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -17,7 +17,7 @@ static char str_1[STR_1_SIZE] = "The quick green fox runs slowly";
 int main() {
     constexpr int allocs = 100;
     constexpr int ptr_to_free_index = 22;
-    constexpr enum FaSizeClass class = FA_CLASS_288;
+    constexpr enum SlabSizeClass class = SLAB_CLASS_288;
 
     puts("Initializing fast allocator...");
 
@@ -42,7 +42,7 @@ int main() {
     printf("\nFreeing %d. pointer...\n", ptr_to_free_index);
 
     ffree(ptr_to_free);
-    fast_alloc_print_layout(falloc_get_instance());
+    slab_alloc_print_layout(&falloc_get_instance()->slab_alloc);
 
     puts("Allocating again, should return pointer equal to the freed one...");
 
@@ -57,7 +57,7 @@ int main() {
 
     printf("\nData at ptr: %s\n", (char *)ptr);
 
-    print_bitmap(falloc_get_instance()->blocks[class]);
+    print_bitmap(falloc_get_instance()->slab_alloc.slabs[class]);
 
     puts("Freeing all...");
 
@@ -67,7 +67,7 @@ int main() {
 
     puts("Freed all, expecting the allocator to be empty.");
 
-    fast_alloc_print_layout(falloc_get_instance());
+    slab_alloc_print_layout(&falloc_get_instance()->slab_alloc);
 
-    print_bitmap(falloc_get_instance()->blocks[class]);
+    print_bitmap(falloc_get_instance()->slab_alloc.slabs[class]);
 }

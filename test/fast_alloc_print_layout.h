@@ -1,8 +1,8 @@
 #ifndef FAST_ALLOC_PRINT_LAYOUT_H
 #define FAST_ALLOC_PRINT_LAYOUT_H
 
-#include "../src/fast_allocator/bitmap.h"
-#include "../src/fast_allocator/fast_alloc.h"
+#include "../src/bitmap.h"
+#include "../src/slab_alloc.h"
 
 #include <stdio.h>
 
@@ -10,31 +10,31 @@ static inline BitmapSize ceil_int_div_by_64(BitmapSize num) {
     return (num + BITMAP_SIZE_BIT_COUNT - 1) >> LOG2_NUM_BITS_IN_BITMAP_SIZE;
 }
 
-static inline void print_block_data(const struct FaBlock *block) {
-    printf("data: %p\n", block->data);
-    // printf("cache: %p\n", (void *)block->cache);
-    printf("bitmap: %p\n", (void *)&block->bmap);
-    printf("next block: %p\n", (void *)block->next_block);
-    // printf("data size: %d\n", block->data_size);
-    // printf("cache size: %d\n", block->cache_size);
-    printf("size class: %d\n\n", FA_SIZES[block->size_class]);
+static inline void print_slab_data(const struct Slab *slab) {
+    printf("data: %p\n", slab->data);
+    // printf("cache: %p\n", (void *)slab->cache);
+    printf("bitmap: %p\n", (void *)&slab->bmap);
+    printf("next slab: %p\n", (void *)slab->next_slab);
+    // printf("data size: %d\n", slab->data_size);
+    // printf("cache size: %d\n", slab->cache_size);
+    printf("size class: %d\n\n", SLAB_SIZES[slab->size_class]);
 }
 
-static inline void fast_alloc_print_layout(const struct FaAllocator *alloc) {
+static inline void slab_alloc_print_layout(const struct SlabAlloc *alloc) {
     puts("");
-    bool block_in_use_found = false;
+    bool slab_in_use_found = false;
 
-    for (int i = 0; i < FA_NUM_CLASSES; ++i) {
-        struct FaBlock *block = alloc->blocks[i];
+    for (int i = 0; i < SLAB_NUM_CLASSES; ++i) {
+        struct Slab *slab = alloc->slabs[i];
 
-        while (block != nullptr) {
-            block_in_use_found = true;
-            print_block_data(block);
-            block = block->next_block;
+        while (slab != nullptr) {
+            slab_in_use_found = true;
+            print_slab_data(slab);
+            slab = slab->next_slab;
         }
     }
 
-    if (!block_in_use_found) {
+    if (!slab_in_use_found) {
         puts("The allocator is empty.");
     }
 }
@@ -50,16 +50,16 @@ static inline void print_size_t_binary(size_t value) {
     (void)putchar('\n');
 }
 
-static inline void print_bitmap(const struct FaBlock *block) {
+static inline void print_bitmap(const struct Slab *slab) {
     (void)putchar('\n');
 
-    if (block == nullptr) {
-        puts("The block is null, so no bitmap printed.");
+    if (slab == nullptr) {
+        puts("The slab is null, so no bitmap printed.");
         return;
     }
 
-    for (size_t i = 0; i < ceil_int_div_by_64(block->bmap.num_elems); ++i) {
-        print_size_t_binary(block->bmap.map[i]);
+    for (size_t i = 0; i < ceil_int_div_by_64(slab->bmap.num_elems); ++i) {
+        print_size_t_binary(slab->bmap.map[i]);
     }
 
     (void)putchar('\n');

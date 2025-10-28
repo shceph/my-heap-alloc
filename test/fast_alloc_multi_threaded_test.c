@@ -1,5 +1,5 @@
-#include "../src/fast_allocator/fast_alloc.h"
-#include "../src/fast_allocator/fast_alloc_global_wrapper.h"
+#include "../src/falloc.h"
+#include "../src/slab_alloc.h"
 
 #include <pthread.h>
 
@@ -7,22 +7,22 @@
 #include <stdio.h>
 #include <string.h>
 
-struct FaAllocator alloc;
+struct SlabAlloc alloc;
 
 void *alloc_then_free_thread_unsafe(void * /*arg*/) {
     constexpr int alloc_count = 800;
-    constexpr enum FaSizeClass class = FA_CLASS_48;
-    FaSize size = FA_SIZES[class];
+    constexpr enum SlabSizeClass class = SLAB_CLASS_48;
+    SlabSize size = SLAB_SIZES[class];
 
     void *ptrs[alloc_count];
 
     for (int i = 0; i < alloc_count; ++i) {
-        ptrs[i] = fa_alloc(&alloc, size);
+        ptrs[i] = slab_alloc(&alloc, size);
         memset(ptrs[i], 0, size);
     }
 
     for (int i = 0; i < alloc_count; ++i) {
-        fa_free(&alloc, ptrs[i]);
+        slab_free(&alloc, ptrs[i]);
     }
 
     return nullptr;
@@ -30,8 +30,8 @@ void *alloc_then_free_thread_unsafe(void * /*arg*/) {
 
 void *alloc_then_free_thread_safe(void * /*arg*/) {
     constexpr int alloc_count = 800;
-    constexpr enum FaSizeClass class = FA_CLASS_48;
-    FaSize size = FA_SIZES[class];
+    constexpr enum SlabSizeClass class = SLAB_CLASS_48;
+    SlabSize size = SLAB_SIZES[class];
 
     void *ptrs[alloc_count];
 
@@ -53,22 +53,8 @@ void *free_ptr_from_main_thread(void *ptr) {
     return nullptr;
 }
 
-int main(int argc, const char *argv[]) {
-    bool run_unsafe_variant = false;
-    const char *thread_unsafe_flag = "--thread-unsafe";
-
-    if (argc > 1 &&
-        strncmp(thread_unsafe_flag, argv[1], strlen(thread_unsafe_flag)) == 0) {
-        run_unsafe_variant = true;
-    }
-
+int main() {
     void *(*func_ptr)(void *) = &alloc_then_free_thread_safe;
-
-    if (run_unsafe_variant) {
-        puts("Runs unsafe variant.");
-        func_ptr = alloc_then_free_thread_unsafe;
-        alloc = fa_init();
-    }
 
     puts("Doing a bunch of allocations and frees in multiple threads to check "
          "the behaviour...");

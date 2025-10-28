@@ -1,4 +1,4 @@
-#include "../src/fast_allocator/rtree.h"
+#include "../src/rtree.h"
 
 #include <stdio.h>
 

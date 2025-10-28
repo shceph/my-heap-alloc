@@ -1,6 +1,6 @@
 #include "rtree_print.h"
 
-#include "../src/fast_allocator/rtree.h"
+#include "../src/rtree.h"
 
 #include <inttypes.h>
 #include <stdio.h>
@@ -8,7 +8,7 @@
 typedef int ArrayType;
 
 int main() {
-    constexpr int ptr_count = 5;
+    constexpr int ptr_count = 30;
     ArrayType arr_to_push[ptr_count];
     ArrayType arr_to_check[ptr_count];
 
@@ -33,6 +33,7 @@ int main() {
 
         bool contains =
             rtree_retrieve_size_if_contains(&rtree, &arr_to_push[i], &size);
+        (void)contains;
         assert(contains);
 
         assert(size == sizeof(ArrayType));
@@ -46,6 +47,7 @@ int main() {
 
     for (int i = 0; i < ptr_count; ++i) {
         bool contains = rtree_contains(&rtree, &arr_to_check[i]);
+        (void)contains;
         assert(!contains);
     }
 
@@ -60,6 +62,7 @@ int main() {
         printf("Retrieved size: %zu\n", size);
 
         bool contains = rtree_contains(&rtree, &arr_to_push[i]);
+        (void)contains;
         assert(!contains);
     }
 

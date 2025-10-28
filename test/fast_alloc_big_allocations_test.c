@@ -1,6 +1,6 @@
 #include "rtree_print.h"
 
-#include "../src/fast_allocator/fast_alloc_global_wrapper.h"
+#include "../src/falloc.h"
 
 static constexpr size_t STRING_SIZE = 2048;
 static constexpr size_t BIG_STRING_SIZE = 99999999;
