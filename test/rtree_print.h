@@ -1,4 +1,4 @@
-#include "../src/rtree.h"
+#include "rtree.h"
 
 #include <stdio.h>
 

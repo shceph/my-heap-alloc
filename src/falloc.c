@@ -1,12 +1,10 @@
-#include "falloc.h"
+#include <falloc.h>
 
-#include "rtree.h"
-#include "slab_alloc.h"
-
-#include "fallback_allocator/fallback_allocator.h"
-
-#include "error.h"
-#include "os_allocator.h"
+#include <error.h>
+#include <fallback_alloc/fallback_alloc.h>
+#include <os_allocator.h>
+#include <rtree.h>
+#include <slab_alloc.h>
 
 #include <assert.h>
 #include <stddef.h>
@@ -130,6 +128,10 @@ void *falloc(size_t size) {
 }
 
 void ffree(void *ptr) {
+    if (!ptr) {
+        return;
+    }
+
     if (allocator && rtree_contains(&allocator->rtree, ptr)) {
         free_big(allocator, ptr);
         return;

@@ -1,5 +1,5 @@
-#include "../src/falloc.h"
-#include "../src/slab_alloc.h"
+#include "falloc.h"
+#include "slab_alloc.h"
 
 #include <pthread.h>
 

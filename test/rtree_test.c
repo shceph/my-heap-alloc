@@ -1,6 +1,6 @@
 #include "rtree_print.h"
 
-#include "../src/rtree.h"
+#include "rtree.h"
 
 #include <inttypes.h>
 #include <stdio.h>

@@ -4,17 +4,11 @@
 #include "rtree.h"
 #include "slab_alloc.h"
 
-#include "fallback_allocator/fallback_allocator.h"
+#include "fallback_alloc/fallback_alloc.h"
 
 #include <stddef.h>
 
 #include <pthread.h>
-
-// struct CrossThreadCache {
-//     pthread_mutex_t lock;
-//     size_t size;
-//     void *stack[];
-// };
 
 struct Falloc {
     struct SlabAlloc slab_alloc;

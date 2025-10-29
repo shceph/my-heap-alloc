@@ -1,4 +1,4 @@
-#include "bitmap.h"
+#include <bitmap.h>
 
 #include <assert.h>
 #include <stddef.h>
@@ -32,7 +32,7 @@ struct Bitmap bitmap_init(void *mem_size_t_aligned, BitmapSize num_elements) {
 }
 
 BitmapSize bitmap_find_free_and_swap(struct Bitmap *bmap) {
-    assert(bmap != nullptr);
+    assert(bmap);
 
     for (BitmapSize i = 0; i < ceil_int_div_by_64(bmap->num_elems); ++i) {
         if (bmap->map[i] == ALL_BITS_ARE_1) {

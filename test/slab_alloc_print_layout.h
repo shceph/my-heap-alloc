@@ -1,8 +1,8 @@
 #ifndef FAST_ALLOC_PRINT_LAYOUT_H
 #define FAST_ALLOC_PRINT_LAYOUT_H
 
-#include "../src/bitmap.h"
-#include "../src/slab_alloc.h"
+#include "bitmap.h"
+#include "slab_alloc.h"
 
 #include <stdio.h>
 

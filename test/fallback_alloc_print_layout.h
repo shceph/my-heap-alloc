@@ -1,7 +1,7 @@
 #ifndef TEST_H
 #define TEST_H
 
-#include "../src/fallback_allocator/fallback_allocator.h"
+#include "fallback_alloc/fallback_alloc.h"
 
 #include <stdio.h>
 

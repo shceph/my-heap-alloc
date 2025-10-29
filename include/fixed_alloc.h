@@ -14,7 +14,7 @@ typedef size_t FixedAllocCacheSizeType;
 
 STACK_DECLARE(FixedAllocCacheElem, FixedAllocCacheSizeType, FixedAllocCache)
 
-constexpr size_t SLAB_SIZE = 8 * OS_ALLOC_PAGE_SIZE;
+constexpr size_t SLAB_SIZE = 64 * OS_ALLOC_PAGE_SIZE;
 constexpr size_t FIXED_ALLOC_BLOCK_CAPACITY = 64;
 
 struct FixedAllocBlock {

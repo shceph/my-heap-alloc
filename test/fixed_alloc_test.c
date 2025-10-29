@@ -1,4 +1,4 @@
-#include "../src/fixed_alloc.h"
+#include "fixed_alloc.h"
 
 #include <stddef.h>
 #include <stdio.h>

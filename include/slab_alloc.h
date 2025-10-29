@@ -120,10 +120,10 @@ constexpr float SLAB_SIZE_CLASS_RECIPROCALS[SLAB_NUM_CLASSES] = {
 
 struct SlabAlloc;
 
-typedef uint16_t CacheOffset;
-typedef uint16_t CacheSizeType;
+typedef uint32_t CacheOffset;
+typedef uint32_t CacheSizeType;
 
-constexpr CacheOffset CACHE_OFFSET_MAX = UINT16_MAX;
+constexpr CacheOffset CACHE_OFFSET_MAX = UINT32_MAX;
 
 STACK_DECLARE(CacheOffset, CacheSizeType, CacheStack)
 

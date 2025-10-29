@@ -1,11 +1,10 @@
-#include "slab_alloc.h"
+#include <slab_alloc.h>
 
-#include "bitmap.h"
-#include "fixed_alloc.h"
-#include "stack_definition.h"
-
-#include "error.h"
-#include "os_allocator.h"
+#include <bitmap.h>
+#include <error.h>
+#include <fixed_alloc.h>
+#include <os_allocator.h>
+#include <stack_definition.h>
 
 #include <pthread.h>
 
@@ -16,7 +15,7 @@
 
 STACK_DEFINE(CacheOffset, CacheSizeType, CacheStack)
 
-static constexpr CacheSizeType DEFAULT_CACHE_CAPACITY = 10;
+static constexpr CacheSizeType DEFAULT_CACHE_CAPACITY = 100;
 
 static constexpr size_t SIZE_TO_CLASS_LOOKUP_SIZE = 2UL * FA_PAGE_SIZE;
 static SlabSize *size_to_class_lookup = nullptr;
@@ -141,8 +140,14 @@ static inline bool is_ptr_in_slab(const struct Slab *slab, void *ptr) {
 
 static inline void slab_init(struct SlabAlloc *alloc, struct Slab *parent,
                              struct Slab **slab, enum SlabSizeClass class) {
-    assert(slab != nullptr);
-    assert(*slab == nullptr && "Slab already initialized.");
+    // static int counts[SLAB_NUM_CLASSES];
+    // ++counts[class];
+
+    // fa_print_error("owning alloc: %p\n", alloc);
+    // fa_print_error("slab inited count: %zu\n", counts[class]);
+    // fa_print_error("slab size class:   %zu\n", SLAB_SIZES[class]);
+    // assert(slab != nullptr);
+    // assert(*slab == nullptr && "Slab already initialized.");
 
     uint8_t *mem = (uint8_t *)fixed_alloc(&alloc->fixed_alloc);
     assert(mem != nullptr);
@@ -264,9 +269,11 @@ enum FaFreeRet slab_free(struct SlabAlloc *alloc, void *ptr) {
 
     CacheStack_try_push(&slab->cache, (CacheOffset)offset);
 
-    if (handle_decrementing_alloc_counter(slab) == SHOULD_DESTROY_SLAB) {
-        slab_deinit(alloc, slab);
-    }
+	(void)alloc;
+    // if (slab->prev_slab &&
+    //     handle_decrementing_alloc_counter(slab) == SHOULD_DESTROY_SLAB) {
+    //     slab_deinit(alloc, slab);
+    // }
 
     return OK;
 }

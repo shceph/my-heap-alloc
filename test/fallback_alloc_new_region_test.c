@@ -1,6 +1,6 @@
-#include "fallback_allocator_print_memory_layout.h"
+#include "fallback_alloc_print_layout.h"
 
-#include "../src/fallback_allocator/fallback_allocator.h"
+#include "fallback_alloc/fallback_alloc.h"
 
 #include <assert.h>
 #include <stddef.h>

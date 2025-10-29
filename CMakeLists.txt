@@ -9,8 +9,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
 file(GLOB FALLOC_SOURCES ${CMAKE_SOURCE_DIR}/src/*.c
-     ${CMAKE_SOURCE_DIR}/src/fallback_allocator/*.c)
+     ${CMAKE_SOURCE_DIR}/src/fallback_alloc/*.c)
 add_library(falloc STATIC ${FALLOC_SOURCES})
+target_include_directories(falloc PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 file(GLOB TEST_SOURCES "test/*.c")
 
