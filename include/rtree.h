@@ -3,10 +3,11 @@
 
 #include "fixed_alloc.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
-constexpr size_t RTREE_DEPTH = sizeof(void *);
+#define RTREE_DEPTH (sizeof(void *))
 
 union RtreeEntry {
     struct RtreeNode *next;
@@ -24,7 +25,7 @@ struct Rtree {
     struct FixedAllocator leaf_allocator;
 };
 
-struct Rtree rtree_init();
+struct Rtree rtree_init(void);
 void rtree_deinit(struct Rtree *rtree);
 void rtree_push_ptr(struct Rtree *rtree, void *ptr, size_t allocated_size);
 void rtree_remove_ptr(struct Rtree *rtree, void *ptr, size_t *out_stored_leaf);

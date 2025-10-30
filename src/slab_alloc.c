@@ -15,11 +15,11 @@
 
 STACK_DEFINE(CacheOffset, CacheSizeType, CacheStack)
 
-static constexpr CacheSizeType DEFAULT_CACHE_CAPACITY = 100;
+#define DEFAULT_CACHE_CAPACITY    100
+#define SIZE_TO_CLASS_LOOKUP_SIZE (2UL * FA_PAGE_SIZE)
 
-static constexpr size_t SIZE_TO_CLASS_LOOKUP_SIZE = 2UL * FA_PAGE_SIZE;
-static SlabSize *size_to_class_lookup = nullptr;
-static SlabSize *num_of_elems_per_class_lookup = nullptr;
+static SlabSize *size_to_class_lookup = NULL;
+static SlabSize *num_of_elems_per_class_lookup = NULL;
 
 static inline void setup_size_to_class_lookup() {
     assert(!size_to_class_lookup);
@@ -43,7 +43,7 @@ static inline void setup_size_to_class_lookup() {
 }
 
 static inline void setup_num_of_elems_per_class_lookup() {
-    assert(num_of_elems_per_class_lookup == nullptr);
+    assert(num_of_elems_per_class_lookup == NULL);
 
     num_of_elems_per_class_lookup = (SlabSize *)os_alloc(FA_PAGE_SIZE);
 
@@ -63,17 +63,17 @@ static inline void setup_num_of_elems_per_class_lookup() {
         // num_of_elems * (elem_size + 1/8) = buff_size - 7/8
         // num_of_elems = (buff_size - 7/8) / (elem_size + 1/8)
 
-        static constexpr float seven_eighths = 7.0F / 8.0F;
-        static constexpr float one_eighth = 1.0F / 8.0F;
+        const float seven_eighths = 7.0F / 8.0F;
+        const float one_eighth = 1.0F / 8.0F;
 
-        constexpr SlabSize buff_size =
+        const SlabSize buff_size =
             SLAB_SIZE - (DEFAULT_CACHE_CAPACITY * sizeof(CacheOffset)) -
             sizeof(struct Slab);
-        constexpr float bits_per_byte = 8.0F;
-        constexpr float bitmap_elem_size = 1 / bits_per_byte;
+        const float bits_per_byte = 8.0F;
+        const float bitmap_elem_size = 1 / bits_per_byte;
 
         SlabSize elem_size = SLAB_SIZES[class];
-        SlabSize num_of_elems = (SlabSize)((buff_size - seven_eighths) /
+        SlabSize num_of_elems = (SlabSize)(((float)buff_size - seven_eighths) /
                                            ((float)elem_size + one_eighth));
 
         num_of_elems_per_class_lookup[class] = num_of_elems;
@@ -93,14 +93,14 @@ static inline void increment_alloc_counter(struct Slab *slab) {
     }
 }
 
-static constexpr bool SHOULD_DESTROY_SLAB = true;
+#define SHOULD_DESTROY_SLAB true
 
 // If the ret vaule is SHOULD_DESTROY_SLAB (aka true), the slab shall be
 // destroyed.
-static inline bool handle_decrementing_alloc_counter(struct Slab *slab) {
-    --slab->total_alloc_count;
+static inline bool decrement_alloc_counter(struct Slab *slab) {
+    const int slab_destroy_max_allocs_threshold = 10;
 
-    constexpr int slab_destroy_max_allocs_threshold = 10;
+    --slab->total_alloc_count;
 
     return (bool)(slab->total_alloc_count == 0 &&
                   slab->max_alloc_count >= slab_destroy_max_allocs_threshold);
@@ -117,15 +117,15 @@ struct Slab *slab_from_ptr(void *ptr) {
 
 bool slab_alloc_is_ptr_in_this_instance(const struct SlabAlloc *alloc,
                                         void *ptr) {
-    assert(alloc != nullptr);
-    assert(ptr != nullptr);
+    assert(alloc != NULL);
+    assert(ptr != NULL);
 
     struct Slab *slab = slab_from_ptr(ptr);
     return slab->owner == alloc;
 }
 
 static inline void *slab_buff_end(const struct Slab *slab) {
-    assert(slab != nullptr);
+    assert(slab != NULL);
 
     return slab->data + SLAB_SIZE - sizeof(struct Slab);
 }
@@ -133,7 +133,7 @@ static inline void *slab_buff_end(const struct Slab *slab) {
 static inline bool is_ptr_in_slab(const struct Slab *slab, void *ptr) {
     return (bool)(
 
-        (uint8_t *)ptr >= slab->data && (size_t *)ptr < slab->bmap.map
+        (uint8_t *)ptr >= slab->data && (size_t *)ptr < slab->bitmap.map
 
     );
 }
@@ -146,44 +146,44 @@ static inline void slab_init(struct SlabAlloc *alloc, struct Slab *parent,
     // fa_print_error("owning alloc: %p\n", alloc);
     // fa_print_error("slab inited count: %zu\n", counts[class]);
     // fa_print_error("slab size class:   %zu\n", SLAB_SIZES[class]);
-    // assert(slab != nullptr);
-    // assert(*slab == nullptr && "Slab already initialized.");
+    // assert(slab != NULL);
+    // assert(*slab == NULL && "Slab already initialized.");
 
     uint8_t *mem = (uint8_t *)fixed_alloc(&alloc->fixed_alloc);
-    assert(mem != nullptr);
+    assert(mem != NULL);
 
     *slab = (struct Slab *)(mem + SLAB_SIZE) - 1;
 
     SlabSize num_of_elems = num_of_elems_per_class_lookup[class];
 
-    SlabSize *bmap_data =
+    SlabSize *bitmap_data =
         (SlabSize *)(mem + (size_t)(num_of_elems * SLAB_SIZES[class]));
 
     CacheOffset *cache_data = (CacheOffset *)(*slab) - DEFAULT_CACHE_CAPACITY;
 
-    assert(is_aligned((uintptr_t)bmap_data, sizeof(BitmapSize)));
+    assert(is_aligned((uintptr_t)bitmap_data, sizeof(BitmapSize)));
 
     **slab = (struct Slab){
         .data = mem,
         .total_alloc_count = 0,
         .max_alloc_count = 0,
-        .bmap = bitmap_init(bmap_data, num_of_elems),
+        .bitmap = bitmap_init(bitmap_data, num_of_elems),
         .cache = CacheStack_init(cache_data, DEFAULT_CACHE_CAPACITY),
         .size_class = class,
-        .next_slab = nullptr,
+        .next_slab = NULL,
         .prev_slab = parent,
         .owner = alloc,
     };
 }
 
 static inline void slab_deinit(struct SlabAlloc *alloc, struct Slab *slab) {
-    if (slab->prev_slab == nullptr) {
+    if (slab->prev_slab == NULL) {
         alloc->slabs[slab->size_class] = slab->next_slab;
     } else {
         slab->prev_slab->next_slab = slab->next_slab;
     }
 
-    if (slab->next_slab != nullptr) {
+    if (slab->next_slab != NULL) {
         slab->next_slab->prev_slab = slab->prev_slab;
     }
 
@@ -210,22 +210,22 @@ struct SlabAlloc slab_alloc_init(struct Falloc *owner) {
 }
 
 void slab_alloc_deinit(struct SlabAlloc *alloc) {
-    assert(alloc != nullptr);
+    assert(alloc != NULL);
 
     fixed_alloc_deinit(&alloc->fixed_alloc);
 }
 
 void *slab_alloc(struct SlabAlloc *alloc, size_t size) {
-    assert(alloc != nullptr);
+    assert(alloc != NULL);
 
     enum SlabSizeClass class = size_to_class_lookup[size];
 
     if (!alloc->slabs[class]) {
-        slab_init(alloc, nullptr, &alloc->slabs[class], class);
+        slab_init(alloc, NULL, &alloc->slabs[class], class);
     }
 
     struct Slab *slab = alloc->slabs[class];
-    assert(slab != nullptr);
+    assert(slab != NULL);
 
     while (true) {
         if (slab->cache.size != 0) {
@@ -235,13 +235,13 @@ void *slab_alloc(struct SlabAlloc *alloc, size_t size) {
                 (size_t)((float)offset *
                          SLAB_SIZE_CLASS_RECIPROCALS[slab->size_class]);
 
-            bitmap_set_to_1(&slab->bmap, bitmap_index);
+            bitmap_set_to_1(&slab->bitmap, bitmap_index);
 
             increment_alloc_counter(slab);
             return slab->data + offset;
         }
 
-        size_t free_slot = bitmap_find_free_and_swap(&slab->bmap);
+        size_t free_slot = bitmap_find_free_and_swap(&slab->bitmap);
 
         if (free_slot != BITMAP_NOT_FOUND) {
             increment_alloc_counter(slab);
@@ -265,11 +265,11 @@ enum FaFreeRet slab_free(struct SlabAlloc *alloc, void *ptr) {
 
     size_t bitmap_index =
         (size_t)((float)offset * SLAB_SIZE_CLASS_RECIPROCALS[slab->size_class]);
-    bitmap_set_to_0(&slab->bmap, bitmap_index);
+    bitmap_set_to_0(&slab->bitmap, bitmap_index);
 
     CacheStack_try_push(&slab->cache, (CacheOffset)offset);
 
-	(void)alloc;
+    (void)alloc;
     // if (slab->prev_slab &&
     //     handle_decrementing_alloc_counter(slab) == SHOULD_DESTROY_SLAB) {
     //     slab_deinit(alloc, slab);
@@ -285,7 +285,7 @@ void *slab_realloc(struct SlabAlloc *alloc, void *ptr, size_t size) {
 
     if (size == 0) {
         slab_free(alloc, ptr);
-        return nullptr;
+        return NULL;
     }
 
     struct Slab *slab = slab_from_ptr(ptr);
@@ -298,7 +298,7 @@ void *slab_realloc(struct SlabAlloc *alloc, void *ptr, size_t size) {
     void *new_mem = slab_alloc(alloc, size);
 
     if (!new_mem) {
-        return nullptr;
+        return NULL;
     }
 
     memcpy(new_mem, ptr, old_size);

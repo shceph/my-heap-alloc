@@ -10,6 +10,8 @@ Checks: >
     bugprone-*,
     cert-*,
     -cert-*-cpp,
+    -cert-msc30-c,
+    -cert-msc32-c,
     -clang-analyzer-security.insecureAPI.*,
 
 WarningsAsErrors: '*'

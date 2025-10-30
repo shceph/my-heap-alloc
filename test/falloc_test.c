@@ -8,16 +8,16 @@
 #include <stdio.h>
 #include <string.h>
 
-static constexpr size_t STR_SIZE = 288;
-static char str[STR_SIZE] = "The quick brown fox runs slowly";
+#define STR_SIZE ((size_t)(288))
+static const char STR[STR_SIZE] = "The quick brown fox runs slowly";
 
-static constexpr size_t STR_1_SIZE = 32;
-static char str_1[STR_1_SIZE] = "The quick green fox runs slowly";
+#define STR_1_SIZE 32
+static const char STR_1[STR_1_SIZE] = "The quick green fox runs slowly";
 
-int main() {
-    constexpr int allocs = 100;
-    constexpr int ptr_to_free_index = 22;
-    constexpr enum SlabSizeClass class = SLAB_CLASS_288;
+int main(void) {
+    const int allocs = 100;
+    const int ptr_to_free_index = 22;
+    const enum SlabSizeClass class = SLAB_CLASS_288;
 
     puts("Initializing fast allocator...");
 
@@ -25,11 +25,11 @@ int main() {
            STR_SIZE, allocs, STR_SIZE);
 
     void *ptrs[allocs];
-    void *ptr_to_free = nullptr;
+    void *ptr_to_free = NULL;
 
     for (int i = 0; i < allocs; ++i) {
         void *ptr = falloc(STR_SIZE);
-        memcpy(ptr, str, STR_SIZE);
+        memcpy(ptr, STR, STR_SIZE);
 
         if (i == ptr_to_free_index) {
             ptr_to_free = ptr;
@@ -53,7 +53,7 @@ int main() {
     puts("Assertion passed, the allocator used the memory location of the "
          "previously freed pointer.");
 
-    memcpy(ptr, str_1, STR_1_SIZE);
+    memcpy(ptr, STR_1, STR_1_SIZE);
 
     printf("\nData at ptr: %s\n", (char *)ptr);
 

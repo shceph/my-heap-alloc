@@ -19,11 +19,11 @@ struct Falloc {
     void *stack[];
 };
 
-void finit();
+void finit(void);
 void *falloc(size_t size);
 void ffree(void *ptr);
 void *frealloc(void *ptr, size_t size);
 size_t fmemsize(void *ptr);
-struct Falloc *falloc_get_instance();
+struct Falloc *falloc_get_instance(void);
 
 #endif // FAST_ALLOC_GLOBAL_WRAPPER_H

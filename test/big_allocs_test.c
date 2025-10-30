@@ -2,8 +2,8 @@
 
 #include "falloc.h"
 
-static constexpr size_t STRING_SIZE = 2048;
-static constexpr size_t BIG_STRING_SIZE = 99999999;
+#define STRING_SIZE     2048
+#define BIG_STRING_SIZE 99999999
 
 struct String {
     char buff[STRING_SIZE];
@@ -13,9 +13,9 @@ struct BigString {
     char buff[BIG_STRING_SIZE];
 };
 
-int main() {
-    constexpr size_t big_string_count = 6;
-    constexpr size_t small_string_count = 10;
+int main(void) {
+    const size_t big_string_count = 6;
+    const size_t small_string_count = 10;
 
     struct BigString *big_strings[big_string_count];
     struct BigString *small_strings[small_string_count];

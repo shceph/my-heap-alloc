@@ -5,10 +5,10 @@
 
 #include <stddef.h>
 
-typedef struct {
-    FallbackChunk *begin;
+struct FallbackRegion {
+    struct FallbackChunk *begin;
     size_t size;
-} FallbackRegion;
+};
 
 #define FALLBACK_MAX_REGIONS 64UL
 

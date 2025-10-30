@@ -5,6 +5,7 @@
 #include <stack_definition.h>
 
 #include <assert.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -12,7 +13,7 @@ STACK_DEFINE(FixedAllocCacheElem, FixedAllocCacheSizeType, FixedAllocCache)
 
 #define GET_NUM_OF_ELEMS(FIXED_ALLOC_VAR) ((FIXED_ALLOC_VAR).cache.capacity)
 
-static constexpr size_t DEFAULT_ALLOC_SIZE = 0x800 * OS_ALLOC_PAGE_SIZE;
+#define DEFAULT_ALLOC_SIZE ((size_t)(0x800 * OS_ALLOC_PAGE_SIZE))
 
 static inline bool is_full(struct FixedAllocBlock *block) {
     size_t fixed_alloc_buff_size =
@@ -107,7 +108,7 @@ static inline void add_block(struct FixedAllocator *alloc) {
 
 static inline void *allocate_from_block(struct FixedAllocBlock *block) {
     if (is_full(block)) {
-        return nullptr;
+        return NULL;
     }
 
     void *ret;

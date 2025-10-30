@@ -21,7 +21,7 @@ static inline struct RtreeNode *node_init(struct Rtree *rtree) {
     struct RtreeNode *node = fixed_alloc(&rtree->node_allocator);
 
     for (int i = 0; i <= UINT8_MAX; ++i) {
-        node->entries[i].next = nullptr;
+        node->entries[i].next = NULL;
     }
 
     node->node_count = 0;
@@ -41,9 +41,9 @@ static inline void leaf_free(struct Rtree *rtree, size_t *leaf) {
     return fixed_free(&rtree->leaf_allocator, leaf);
 }
 
-struct Rtree rtree_init() {
+struct Rtree rtree_init(void) {
     return (struct Rtree){
-        .head = nullptr,
+        .head = NULL,
         .node_allocator = fixed_alloc_init(sizeof(struct RtreeNode)),
         .leaf_allocator = fixed_alloc_init(sizeof(size_t)),
     };
@@ -106,7 +106,7 @@ void rtree_remove_ptr(struct Rtree *rtree, void *ptr, size_t *out_stored_leaf) {
 
     leaf_free(rtree, nodes[RTREE_DEPTH - 1]->entries[byte].leaf);
 
-    nodes[RTREE_DEPTH - 1]->entries[byte].leaf = nullptr;
+    nodes[RTREE_DEPTH - 1]->entries[byte].leaf = NULL;
     --nodes[RTREE_DEPTH - 1]->node_count;
 
     for (int i = RTREE_DEPTH - 1; i > 0; --i) {
@@ -117,7 +117,7 @@ void rtree_remove_ptr(struct Rtree *rtree, void *ptr, size_t *out_stored_leaf) {
         uint8_t byte = get_byte_from_ptr(ptr, i - 1);
 
         node_deinit(rtree, nodes[i]);
-        nodes[i - 1]->entries[byte].next = nullptr;
+        nodes[i - 1]->entries[byte].next = NULL;
         --nodes[i - 1]->node_count;
     }
 
@@ -143,8 +143,7 @@ bool rtree_contains(struct Rtree *rtree, void *ptr) {
         node = entry.next;
     }
 
-    return node->entries[get_byte_from_ptr(ptr, RTREE_DEPTH - 1)].leaf !=
-           nullptr;
+    return node->entries[get_byte_from_ptr(ptr, RTREE_DEPTH - 1)].leaf != NULL;
 }
 
 bool rtree_retrieve_size_if_contains(struct Rtree *rtree, void *ptr,

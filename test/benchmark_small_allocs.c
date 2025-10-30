@@ -6,8 +6,8 @@
 #include <time.h>
 
 #define MAX_ALLOC_SIZE 1024
-#define NUM_OF_ALLOCS  (10 * 1024)
-#define NUM_OF_RERUNS  100
+#define NUM_OF_ALLOCS  (1 * 1024)
+#define NUM_OF_RERUNS  1
 
 typedef void *(*AllocFunc)(size_t);
 typedef void (*FreeFunc)(void *);
@@ -17,7 +17,7 @@ typedef size_t AllocType;
 double run_test(AllocFunc alloc, FreeFunc free) {
     (void)free;
 
-    const size_t sizeof_arr = NUM_OF_ALLOCS * sizeof(void *);
+    const size_t sizeof_arr = (size_t)NUM_OF_ALLOCS * sizeof(void *);
     void **ptrs = (void **)os_alloc(sizeof_arr);
 
     if (!ptrs) {
@@ -32,7 +32,7 @@ double run_test(AllocFunc alloc, FreeFunc free) {
 
     for (int i = 0; i < NUM_OF_RERUNS; ++i) {
         for (int j = 0; j < NUM_OF_ALLOCS; ++j) {
-			// free(ptrs[j]);
+            free(ptrs[j]);
 
             size_t size = rand() % MAX_ALLOC_SIZE;
 
@@ -45,17 +45,17 @@ double run_test(AllocFunc alloc, FreeFunc free) {
             }
         }
 
-        for (int j = 0; j < NUM_OF_ALLOCS; ++j) {
-            free(ptrs[j]);
-            ptrs[j] = NULL;
-        }
+        //         for (int j = 0; j < NUM_OF_ALLOCS; ++j) {
+        //             free(ptrs[j]);
+        //             ptrs[j] = NULL;
+        //         }
     }
 
     struct timespec end;
     clock_gettime(CLOCK_MONOTONIC, &end);
 
-    double time =
-        (end.tv_sec - start.tv_sec) + ((end.tv_nsec - start.tv_nsec) / 1e9);
+    double time = (double)(end.tv_sec - start.tv_sec) +
+                  ((double)(end.tv_nsec - start.tv_nsec) / 1e9);
 
     os_free((void *)ptrs, sizeof_arr);
 
@@ -66,16 +66,18 @@ void no_free(void *ptr) {
     (void)ptr;
 }
 
-int main() {
-    srand(time(NULL));
+int main(void) {
+    time_t seed = time(NULL);
 
     finit();
     void *dummy = malloc(1024 * 1024);
     (void)dummy;
 
-    puts("Testing malloc...");
-    double falloc_time = run_test(&falloc, &ffree);
     puts("Testing falloc...");
+    srand(seed);
+    double falloc_time = run_test(&falloc, &ffree);
+    puts("Testing malloc...");
+    srand(seed);
     double malloc_time = run_test(&malloc, &free);
 
     printf("falloc time: %lfs\n", falloc_time);

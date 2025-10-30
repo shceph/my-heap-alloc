@@ -7,12 +7,13 @@
 
 #include <pthread.h>
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
 typedef uint32_t SlabSize;
 
-constexpr SlabSize FA_PAGE_SIZE = 0x1000;
+#define FA_PAGE_SIZE 0x1000
 
 enum SlabSizeClass {
     SLAB_CLASS_8,
@@ -57,10 +58,10 @@ enum SlabSizeClass {
     SLAB_CLASS_INVALID,
 };
 
-constexpr SlabSize SLAB_CLASS_MIN = 8;
-constexpr SlabSize SLAB_CLASS_MAX = 1024;
+#define SLAB_CLASS_MIN 8
+#define SLAB_CLASS_MAX 1024
 
-constexpr SlabSize SLAB_SIZES[SLAB_NUM_CLASSES] = {
+static const SlabSize SLAB_SIZES[SLAB_NUM_CLASSES] = {
     [SLAB_CLASS_8] = 8,     [SLAB_CLASS_16] = 16,     [SLAB_CLASS_24] = 24,
     [SLAB_CLASS_32] = 32,   [SLAB_CLASS_48] = 48,     [SLAB_CLASS_64] = 64,
     [SLAB_CLASS_80] = 80,   [SLAB_CLASS_96] = 96,     [SLAB_CLASS_112] = 112,
@@ -77,7 +78,7 @@ constexpr SlabSize SLAB_SIZES[SLAB_NUM_CLASSES] = {
 };
 
 // Using this to multiply with reciprocals instead of dividing, which is faster.
-constexpr float SLAB_SIZE_CLASS_RECIPROCALS[SLAB_NUM_CLASSES] = {
+static const float SLAB_SIZE_CLASS_RECIPROCALS[SLAB_NUM_CLASSES] = {
     [SLAB_CLASS_8] = 1.0F / (float)SLAB_SIZES[SLAB_CLASS_8],
     [SLAB_CLASS_16] = 1.0F / (float)SLAB_SIZES[SLAB_CLASS_16],
     [SLAB_CLASS_24] = 1.0F / (float)SLAB_SIZES[SLAB_CLASS_24],
@@ -123,7 +124,7 @@ struct SlabAlloc;
 typedef uint32_t CacheOffset;
 typedef uint32_t CacheSizeType;
 
-constexpr CacheOffset CACHE_OFFSET_MAX = UINT32_MAX;
+#define CACHE_OFFSET_MAX UINT32_MAX
 
 STACK_DECLARE(CacheOffset, CacheSizeType, CacheStack)
 
@@ -132,7 +133,7 @@ struct Slab {
     uint32_t total_alloc_count;
     uint32_t max_alloc_count;
     enum SlabSizeClass size_class;
-    struct Bitmap bmap;
+    struct Bitmap bitmap;
     struct CacheStack cache;
     struct Slab *next_slab;
     struct Slab *prev_slab;

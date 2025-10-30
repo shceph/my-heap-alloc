@@ -11,12 +11,12 @@
 #define TEST_STRING    "a really long string"
 #define TEST_STR_SIZE  21
 
-void realloc_test(FallbackHeapAllocator *aloc) {
+void realloc_test(struct FallbackAlloc *aloc) {
     puts("[TEST] Testing fallback_realloc");
 
     int *arr = (int *)fallback_alloc(aloc, ARR0_SIZE * sizeof(int));
 
-    if (arr == nullptr) {
+    if (arr == NULL) {
         puts("arr is null, aborting...");
         return;
     }
@@ -43,21 +43,21 @@ void realloc_test(FallbackHeapAllocator *aloc) {
     }
 }
 
-int main() {
+int main(void) {
     printf("[TEST] Creating the allocator...\n");
-    FallbackHeapAllocator aloc = fallback_allocator_create(ALLOCATOR_SIZE);
+    struct FallbackAlloc aloc = fallback_allocator_create(ALLOCATOR_SIZE);
     printf("[OK] Created the allocator\n");
 
     printf("[TEST] Allocating for array 0...\n");
 
     int *arr0 = (int *)fallback_alloc(&aloc, ARR0_SIZE * sizeof(int));
 
-    if (arr0 == nullptr) {
+    if (arr0 == NULL) {
         printf("[FAIL] Failed to allocate memory for array 0\n");
         return 1;
     }
 
-    printf("[OK] arr0 != nullptr, should have allocated correctly\n");
+    printf("[OK] arr0 != NULL, should have allocated correctly\n");
 
     for (size_t i = 0; i < ARR0_SIZE; i++) {
         arr0[i] = (int)i;
@@ -67,12 +67,12 @@ int main() {
 
     int *arr1 = (int *)fallback_alloc(&aloc, ARR1_SIZE * sizeof(int));
 
-    if (arr1 == nullptr) {
+    if (arr1 == NULL) {
         printf("[FAIL] Failed to allocate memory for array 1\n");
         return 1;
     }
 
-    printf("[OK] arr1 != nullptr, should have allocated correctly\n");
+    printf("[OK] arr1 != NULL, should have allocated correctly\n");
 
     for (size_t i = 0; i < ARR1_SIZE; i++) {
         arr1[i] = -(int)i;
@@ -82,12 +82,12 @@ int main() {
 
     char *str = (char *)fallback_alloc(&aloc, TEST_STR_SIZE);
 
-    if (str == nullptr) {
+    if (str == NULL) {
         printf("[FAIL] Failed to allocate memory for str\n");
         return 1;
     }
 
-    printf("[OK] str != nullptr, should have allocated correctly\n");
+    printf("[OK] str != NULL, should have allocated correctly\n");
 
     strncpy(str, TEST_STRING, TEST_STR_SIZE);
 

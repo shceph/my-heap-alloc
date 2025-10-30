@@ -7,8 +7,8 @@
 
 typedef int ArrayType;
 
-int main() {
-    constexpr int ptr_count = 30;
+int main(void) {
+    const int ptr_count = 30;
     ArrayType arr_to_push[ptr_count];
     ArrayType arr_to_check[ptr_count];
 

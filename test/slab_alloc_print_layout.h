@@ -13,7 +13,7 @@ static inline BitmapSize ceil_int_div_by_64(BitmapSize num) {
 static inline void print_slab_data(const struct Slab *slab) {
     printf("data: %p\n", slab->data);
     // printf("cache: %p\n", (void *)slab->cache);
-    printf("bitmap: %p\n", (void *)&slab->bmap);
+    printf("bitmap: %p\n", (void *)&slab->bitmap);
     printf("next slab: %p\n", (void *)slab->next_slab);
     // printf("data size: %d\n", slab->data_size);
     // printf("cache size: %d\n", slab->cache_size);
@@ -27,7 +27,7 @@ static inline void slab_alloc_print_layout(const struct SlabAlloc *alloc) {
     for (int i = 0; i < SLAB_NUM_CLASSES; ++i) {
         struct Slab *slab = alloc->slabs[i];
 
-        while (slab != nullptr) {
+        while (slab) {
             slab_in_use_found = true;
             print_slab_data(slab);
             slab = slab->next_slab;
@@ -53,13 +53,13 @@ static inline void print_size_t_binary(size_t value) {
 static inline void print_bitmap(const struct Slab *slab) {
     (void)putchar('\n');
 
-    if (slab == nullptr) {
+    if (!slab) {
         puts("The slab is null, so no bitmap printed.");
         return;
     }
 
-    for (size_t i = 0; i < ceil_int_div_by_64(slab->bmap.num_elems); ++i) {
-        print_size_t_binary(slab->bmap.map[i]);
+    for (size_t i = 0; i < ceil_int_div_by_64(slab->bitmap.num_elems); ++i) {
+        print_size_t_binary(slab->bitmap.map[i]);
     }
 
     (void)putchar('\n');

@@ -7,24 +7,24 @@
 #include <stdio.h>
 #include <string.h>
 
-static constexpr size_t STR_SIZE = 32;
+#define STR_SIZE ((size_t)(32))
 static char str[STR_SIZE] = "The quick brown fox runs slowly";
 
-static constexpr size_t STR_1_SIZE = 32;
+#define STR_1_SIZE ((size_t)(32))
 static char str_1[STR_1_SIZE] = "The quick green fox runs slowly";
 
-int main() {
-    constexpr int allocs = 1000;
-    constexpr int ptr_to_free_index = 900;
+int main(void) {
+    const int allocs = 1000;
+    const int ptr_to_free_index = 900;
 
     puts("Initializing fast allocator...");
 
-    struct SlabAlloc alloc = slab_alloc_init(nullptr);
+    struct SlabAlloc alloc = slab_alloc_init(NULL);
 
     printf("Allocating %zu bytes %d times and copying string of len = %zu\n",
            STR_SIZE, allocs, STR_SIZE);
 
-    void *ptr_to_free = nullptr;
+    void *ptr_to_free = NULL;
 
     for (int i = 0; i < allocs; ++i) {
         void *ptr = slab_alloc(&alloc, STR_SIZE);

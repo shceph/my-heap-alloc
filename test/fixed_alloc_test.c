@@ -1,5 +1,6 @@
 #include "fixed_alloc.h"
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <string.h>
@@ -14,9 +15,9 @@ static inline bool is_full(struct FixedAllocBlock *block) {
            block->cache.size == 0;
 }
 
-int main() {
-    constexpr size_t unit_size = 0x1000;
-    constexpr int allocations_count = 0x2000;
+int main(void) {
+    const size_t unit_size = 0x1000;
+    const int allocations_count = 0x2000;
     void *ptrs[allocations_count];
 
     printf("Size to alloc: %zu KB\n", allocations_count * unit_size / 1024);

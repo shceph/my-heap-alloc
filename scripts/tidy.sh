@@ -6,7 +6,7 @@ echo "=============================================="
 
 clang-tidy -p build/ \
 	-header-filter='^src/.*' \
-	$(find src/ -name "*.c" -o -name "*.h")
+	$(find src/ include/ -name "*.c" -o -name "*.h")
 
 echo "=============================================="
 echo "✅ Clang-tidy complete"

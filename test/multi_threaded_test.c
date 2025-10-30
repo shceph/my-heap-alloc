@@ -9,9 +9,11 @@
 
 struct SlabAlloc alloc;
 
-void *alloc_then_free_thread_unsafe(void * /*arg*/) {
-    constexpr int alloc_count = 800;
-    constexpr enum SlabSizeClass class = SLAB_CLASS_48;
+void *alloc_then_free_thread_unsafe(void *arg) {
+    (void)arg;
+
+    const int alloc_count = 800;
+    const enum SlabSizeClass class = SLAB_CLASS_48;
     SlabSize size = SLAB_SIZES[class];
 
     void *ptrs[alloc_count];
@@ -25,12 +27,14 @@ void *alloc_then_free_thread_unsafe(void * /*arg*/) {
         slab_free(&alloc, ptrs[i]);
     }
 
-    return nullptr;
+    return NULL;
 }
 
-void *alloc_then_free_thread_safe(void * /*arg*/) {
-    constexpr int alloc_count = 800;
-    constexpr enum SlabSizeClass class = SLAB_CLASS_48;
+void *alloc_then_free_thread_safe(void *arg) {
+    (void)arg;
+
+    const int alloc_count = 800;
+    const enum SlabSizeClass class = SLAB_CLASS_48;
     SlabSize size = SLAB_SIZES[class];
 
     void *ptrs[alloc_count];
@@ -50,10 +54,10 @@ void *alloc_then_free_thread_safe(void * /*arg*/) {
 void *free_ptr_from_main_thread(void *ptr) {
     ffree(ptr);
 
-    return nullptr;
+    return NULL;
 }
 
-int main() {
+int main(void) {
     void *(*func_ptr)(void *) = &alloc_then_free_thread_safe;
 
     puts("Doing a bunch of allocations and frees in multiple threads to check "
@@ -61,13 +65,13 @@ int main() {
 
     pthread_t thr1;
     pthread_t thr2;
-    pthread_create(&thr1, nullptr, func_ptr, nullptr);
-    pthread_create(&thr2, nullptr, func_ptr, nullptr);
+    pthread_create(&thr1, NULL, func_ptr, NULL);
+    pthread_create(&thr2, NULL, func_ptr, NULL);
 
-    void *allocated_ptr = nullptr;
+    void *allocated_ptr = NULL;
 
     pthread_join(thr1, &allocated_ptr);
-    pthread_join(thr2, nullptr);
+    pthread_join(thr2, NULL);
 
     puts("No segfault happened, which should mean that everything is working "
          "fine.\n");
@@ -77,9 +81,9 @@ int main() {
          "memory should point to the memory that was freed in another thread, "
          "as the freed pointer should be the latest in the cache stack...");
 
-    constexpr size_t sz_to_alloc = 8;
+    const size_t sz_to_alloc = 8;
     void *ptr = falloc(sz_to_alloc);
-    pthread_create(&thr1, nullptr, &free_ptr_from_main_thread, ptr);
+    pthread_create(&thr1, NULL, &free_ptr_from_main_thread, ptr);
     pthread_join(thr1, &allocated_ptr);
     void *ptr2 = falloc(sz_to_alloc);
     assert(ptr == ptr2);

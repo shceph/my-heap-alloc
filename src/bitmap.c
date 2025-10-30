@@ -31,29 +31,29 @@ struct Bitmap bitmap_init(void *mem_size_t_aligned, BitmapSize num_elements) {
     };
 }
 
-BitmapSize bitmap_find_free_and_swap(struct Bitmap *bmap) {
-    assert(bmap);
+BitmapSize bitmap_find_free_and_swap(struct Bitmap *bitmap) {
+    assert(bitmap);
 
-    for (BitmapSize i = 0; i < ceil_int_div_by_64(bmap->num_elems); ++i) {
-        if (bmap->map[i] == ALL_BITS_ARE_1) {
+    for (BitmapSize i = 0; i < ceil_int_div_by_64(bitmap->num_elems); ++i) {
+        if (bitmap->map[i] == ALL_BITS_ARE_1) {
             continue;
         }
 
-        BitmapSize inverted = ~bmap->map[i];
+        BitmapSize inverted = ~bitmap->map[i];
         int ctz = __builtin_ctzll(inverted);
-        bmap->map[i] |= (BitmapSize)1 << ctz;
+        bitmap->map[i] |= (BitmapSize)1 << ctz;
         return (i * BITMAP_SIZE_BIT_COUNT) + ctz;
     }
 
     return BITMAP_NOT_FOUND;
 }
 
-void bitmap_set_to_0(struct Bitmap *bmap, BitmapSize bit_index) {
-    bmap->map[bit_index >> LOG2_NUM_BITS_IN_BITMAP_SIZE] &=
+void bitmap_set_to_0(struct Bitmap *bitmap, BitmapSize bit_index) {
+    bitmap->map[bit_index >> LOG2_NUM_BITS_IN_BITMAP_SIZE] &=
         ~((BitmapSize)1 << (bit_index & (BITMAP_SIZE_BIT_COUNT - 1)));
 }
 
-void bitmap_set_to_1(struct Bitmap *bmap, BitmapSize bit_index) {
-    bmap->map[bit_index >> LOG2_NUM_BITS_IN_BITMAP_SIZE] |=
+void bitmap_set_to_1(struct Bitmap *bitmap, BitmapSize bit_index) {
+    bitmap->map[bit_index >> LOG2_NUM_BITS_IN_BITMAP_SIZE] |=
         (BitmapSize)1 << (bit_index & (BITMAP_SIZE_BIT_COUNT - 1));
 }

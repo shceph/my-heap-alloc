@@ -7,27 +7,27 @@
 #include <stdalign.h>
 #include <stddef.h>
 
-typedef struct FallbackAlloc {
-    FallbackChunk *chunk_llist_head;
-    FallbackRegion regions[FALLBACK_MAX_REGIONS];
+struct FallbackAlloc {
+    struct FallbackChunk *chunk_llist_head;
+    struct FallbackRegion regions[FALLBACK_MAX_REGIONS];
     size_t total_size;
     size_t region_count;
-} FallbackHeapAllocator;
+};
 
-FallbackHeapAllocator fallback_allocator_create(size_t size);
-void fallback_allocator_destroy(FallbackHeapAllocator *aloc);
+struct FallbackAlloc fallback_allocator_create(size_t size);
+void fallback_allocator_destroy(struct FallbackAlloc *aloc);
 
-void *fallback_alloc(FallbackHeapAllocator *aloc, size_t size);
+void *fallback_alloc(struct FallbackAlloc *aloc, size_t size);
 
-typedef enum {
+enum FallbackSplitResult {
     FALLBACK_SPLIT_FAILURE = 0,
     FALLBACK_SPLIT_SUCCESS = 1
-} FallbackSplitResult;
+};
 // split_size needs to be aligned by CHUNK_ALIGN.
-FallbackSplitResult fallback_chunk_split_unused(FallbackChunk *chunk,
-                                                size_t split_size);
+enum FallbackSplitResult
+fallback_chunk_split_unused(struct FallbackChunk *chunk, size_t split_size);
 
-void *fallback_realloc(FallbackHeapAllocator *aloc, void *ptr, size_t size);
-void fallback_free(FallbackHeapAllocator *aloc, void *ptr);
+void *fallback_realloc(struct FallbackAlloc *aloc, void *ptr, size_t size);
+void fallback_free(struct FallbackAlloc *aloc, void *ptr);
 
 #endif // FALLBACK_ALLOCATOR_H

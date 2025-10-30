@@ -8,7 +8,7 @@ static inline void print_node(struct RtreeNode *node, int depth) {
     }
 
     for (int i = 0; i <= UINT8_MAX; ++i) {
-        if (node->entries[i].next == nullptr) {
+        if (node->entries[i].next == NULL) {
             continue;
         }
 

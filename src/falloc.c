@@ -8,6 +8,7 @@
 
 #include <assert.h>
 #include <stddef.h>
+#include <threads.h>
 
 #define FALLBACK_ALLOC_DEFAULT_SIZE ((size_t)(10 * 1024 * 1024))
 
@@ -23,7 +24,7 @@ static inline void *alloc_big(struct Falloc *alloc, size_t size) {
     void *ptr = fallback_alloc(&alloc->fallback_alloc, size);
 
     if (!ptr) {
-        return nullptr;
+        return NULL;
     }
 
     rtree_push_ptr(&alloc->rtree, ptr, size);
@@ -93,7 +94,7 @@ static inline void clear_cross_thread_cache(struct Falloc *alloc) {
     }
 }
 
-void finit() {
+void finit(void) {
     assert(!allocator);
 
     allocator = (struct Falloc *)os_alloc((size_t)2 * FA_PAGE_SIZE);
@@ -162,6 +163,6 @@ size_t fmemsize(void *ptr) {
     return slab_memsize(ptr);
 }
 
-struct Falloc *falloc_get_instance() {
+struct Falloc *falloc_get_instance(void) {
     return allocator;
 }
