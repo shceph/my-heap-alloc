@@ -1,7 +1,7 @@
 #include <fixed_alloc.h>
 
 #include <error.h>
-#include <os_allocator.h>
+#include <os_alloc.h>
 #include <stack_definition.h>
 
 #include <assert.h>
@@ -37,20 +37,6 @@ static inline void *align_up_to_unit_size(const void *ptr, size_t unit_size) {
     uintptr_t bias = ((intptr + (unit_size - 1)) & ~(unit_size - 1)) - intptr;
 
     return (char *)ptr + bias;
-}
-
-void *align_up_to_block_size(const void *ptr) {
-    uintptr_t intptr = (uintptr_t)ptr;
-    uintptr_t bias = ((intptr + (SLAB_SIZE - 1)) & ~(SLAB_SIZE - 1)) - intptr;
-
-    return (char *)ptr + bias;
-}
-
-void *align_down_to_slab_size(const void *ptr) {
-    uintptr_t intptr = (uintptr_t)ptr;
-    uintptr_t intptr_down_aligned = intptr & ~(SLAB_SIZE - 1);
-    uintptr_t bias = intptr - intptr_down_aligned;
-    return (char *)ptr - bias;
 }
 
 static inline struct FixedAllocBlock block_init(size_t unit_size,

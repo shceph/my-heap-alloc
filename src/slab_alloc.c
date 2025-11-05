@@ -3,7 +3,7 @@
 #include <bitmap.h>
 #include <error.h>
 #include <fixed_alloc.h>
-#include <os_allocator.h>
+#include <os_alloc.h>
 #include <stack_definition.h>
 
 #include <pthread.h>
@@ -14,6 +14,8 @@
 #include <string.h>
 
 STACK_DEFINE(CacheOffset, CacheSizeType, CacheStack)
+
+#define SLAB_SIZE ((size_t)(1024 * OS_ALLOC_PAGE_SIZE))
 
 #define DEFAULT_CACHE_CAPACITY    100
 #define SIZE_TO_CLASS_LOOKUP_SIZE (2UL * FA_PAGE_SIZE)
@@ -31,7 +33,7 @@ static inline void setup_size_to_class_lookup() {
         assert(false);
     }
 
-    enum SlabSizeClass current_class_entry = 0;
+    enum SizeClass current_class_entry = 0;
 
     for (int i = 0; i <= SLAB_CLASS_MAX; ++i) {
         if (i > SLAB_SIZES[current_class_entry]) {
@@ -53,8 +55,8 @@ static inline void setup_num_of_elems_per_class_lookup() {
         assert(false);
     }
 
-    for (enum SlabSizeClass class = SLAB_CLASS_8; class <= SLAB_CLASS_1024;
-         ++class) {
+    for (enum SizeClass size_class = SLAB_CLASS_8;
+         size_class <= SLAB_CLASS_1024; ++size_class) {
         // Splitting the buffer so it stores both the data and the bitmap.
 
         // num_of_elems * elem_size + ceil(num_of_elems / 8) = buff_size
@@ -68,16 +70,24 @@ static inline void setup_num_of_elems_per_class_lookup() {
 
         const SlabSize buff_size =
             SLAB_SIZE - (DEFAULT_CACHE_CAPACITY * sizeof(CacheOffset)) -
-            sizeof(struct Slab);
+            sizeof(struct Slab *);
         const float bits_per_byte = 8.0F;
         const float bitmap_elem_size = 1 / bits_per_byte;
 
-        SlabSize elem_size = SLAB_SIZES[class];
+        SlabSize elem_size = SLAB_SIZES[size_class];
         SlabSize num_of_elems = (SlabSize)(((float)buff_size - seven_eighths) /
                                            ((float)elem_size + one_eighth));
 
-        num_of_elems_per_class_lookup[class] = num_of_elems;
+        num_of_elems_per_class_lookup[size_class] = num_of_elems;
     }
+}
+
+static inline void *align_down_to_slab_size(const void *ptr) {
+    uintptr_t intptr = (uintptr_t)ptr;
+    uintptr_t intptr_down_aligned = intptr & ~(SLAB_SIZE - 1);
+    uintptr_t bias = intptr - intptr_down_aligned;
+
+    return (char *)ptr - bias;
 }
 
 static inline bool is_aligned(size_t val, size_t align) {
@@ -95,7 +105,7 @@ static inline void increment_alloc_counter(struct Slab *slab) {
 
 #define SHOULD_DESTROY_SLAB true
 
-// If the ret vaule is SHOULD_DESTROY_SLAB (aka true), the slab shall be
+// If the ret vaule is SHOULD_DESTROY_SLAB (aka true), the slab should be
 // destroyed.
 static inline bool decrement_alloc_counter(struct Slab *slab) {
     const int slab_destroy_max_allocs_threshold = 10;
@@ -106,22 +116,29 @@ static inline bool decrement_alloc_counter(struct Slab *slab) {
                   slab->max_alloc_count >= slab_destroy_max_allocs_threshold);
 }
 
-struct Slab *slab_from_ptr(void *ptr) {
-    char *ptr_down_aligned = (char *)align_down_to_slab_size(ptr);
+static inline void *find_in_slab(struct Slab *slab) {
+    if (slab->cache.size != 0) {
+        CacheOffset offset = CacheStack_pop(&slab->cache);
 
-    struct Slab *slab_metadata =
-        (struct Slab *)(ptr_down_aligned + SLAB_SIZE - sizeof(struct Slab));
+        size_t bitmap_index =
+            (size_t)((float)offset *
+                     SLAB_SIZE_CLASS_RECIPROCALS[slab->size_class]);
 
-    return slab_metadata;
-}
+        bitmap_set_to_1(&slab->bitmap, bitmap_index);
 
-bool slab_alloc_is_ptr_in_this_instance(const struct SlabAlloc *alloc,
-                                        void *ptr) {
-    assert(alloc != NULL);
-    assert(ptr != NULL);
+        increment_alloc_counter(slab);
+        return slab->data + offset;
+    }
 
-    struct Slab *slab = slab_from_ptr(ptr);
-    return slab->owner == alloc;
+    size_t free_slot = bitmap_find_free_and_swap(&slab->bitmap);
+
+    if (free_slot != BITMAP_NOT_FOUND) {
+        increment_alloc_counter(slab);
+        return (char *)slab->data +
+               (size_t)(free_slot * SLAB_SIZES[slab->size_class]);
+    }
+
+    return NULL;
 }
 
 static inline void *slab_buff_end(const struct Slab *slab) {
@@ -131,63 +148,99 @@ static inline void *slab_buff_end(const struct Slab *slab) {
 }
 
 static inline bool is_ptr_in_slab(const struct Slab *slab, void *ptr) {
-    return (bool)(
-
-        (uint8_t *)ptr >= slab->data && (size_t *)ptr < slab->bitmap.map
-
-    );
+    return (uint8_t *)ptr >= slab->data && (size_t *)ptr < slab->bitmap.map;
 }
 
-static inline void slab_init(struct SlabAlloc *alloc, struct Slab *parent,
-                             struct Slab **slab, enum SlabSizeClass class) {
-    // static int counts[SLAB_NUM_CLASSES];
-    // ++counts[class];
+static inline struct SlabPool *slab_pool_init(enum SizeClass size_class) {
+    const size_t default_alloc_size = 1 * (size_t)FA_PAGE_SIZE;
 
-    // fa_print_error("owning alloc: %p\n", alloc);
-    // fa_print_error("slab inited count: %zu\n", counts[class]);
-    // fa_print_error("slab size class:   %zu\n", SLAB_SIZES[class]);
-    // assert(slab != NULL);
-    // assert(*slab == NULL && "Slab already initialized.");
+    struct SlabPool *pool = (struct SlabPool *)os_alloc(default_alloc_size);
 
+    const size_t flex_arr_size = default_alloc_size - sizeof(struct SlabPool);
+
+    memset(pool->slabs, 0, flex_arr_size);
+
+    pool->len = 0;
+    pool->cap = flex_arr_size / sizeof(struct Slab);
+    pool->size_class = size_class;
+    pool->next = NULL;
+
+    return pool;
+}
+
+static inline void slab_init(struct SlabAlloc *alloc, struct Slab *slab,
+                             enum SizeClass size_class) {
     uint8_t *mem = (uint8_t *)fixed_alloc(&alloc->fixed_alloc);
-    assert(mem != NULL);
+    assert(mem);
 
-    *slab = (struct Slab *)(mem + SLAB_SIZE) - 1;
+    struct Slab **ptr_to_metadata =
+        (struct Slab **)(mem + SLAB_SIZE - sizeof(struct Slab *));
 
-    SlabSize num_of_elems = num_of_elems_per_class_lookup[class];
+    *ptr_to_metadata = slab;
+
+    SlabSize num_of_elems = num_of_elems_per_class_lookup[size_class];
 
     SlabSize *bitmap_data =
-        (SlabSize *)(mem + (size_t)(num_of_elems * SLAB_SIZES[class]));
+        (SlabSize *)(mem + (size_t)(num_of_elems * SLAB_SIZES[size_class]));
 
-    CacheOffset *cache_data = (CacheOffset *)(*slab) - DEFAULT_CACHE_CAPACITY;
+    CacheOffset *cache_data =
+        (CacheOffset *)(ptr_to_metadata)-DEFAULT_CACHE_CAPACITY;
 
     assert(is_aligned((uintptr_t)bitmap_data, sizeof(BitmapSize)));
 
-    **slab = (struct Slab){
+    *slab = (struct Slab){
         .data = mem,
         .total_alloc_count = 0,
         .max_alloc_count = 0,
         .bitmap = bitmap_init(bitmap_data, num_of_elems),
         .cache = CacheStack_init(cache_data, DEFAULT_CACHE_CAPACITY),
-        .size_class = class,
-        .next_slab = NULL,
-        .prev_slab = parent,
+        .size_class = size_class,
         .owner = alloc,
     };
 }
 
 static inline void slab_deinit(struct SlabAlloc *alloc, struct Slab *slab) {
-    if (slab->prev_slab == NULL) {
-        alloc->slabs[slab->size_class] = slab->next_slab;
-    } else {
-        slab->prev_slab->next_slab = slab->next_slab;
-    }
-
-    if (slab->next_slab != NULL) {
-        slab->next_slab->prev_slab = slab->prev_slab;
-    }
-
     fixed_free(&alloc->fixed_alloc, slab->data);
+}
+
+static inline struct Slab *add_slab(struct SlabAlloc *alloc,
+                                    enum SizeClass size_class) {
+    if (!alloc->pools[size_class]) {
+        alloc->pools[size_class] = slab_pool_init(size_class);
+
+        if (!alloc->pools[size_class]) {
+            return NULL;
+        }
+    }
+
+    struct SlabPool *pool = alloc->pools[size_class];
+
+    assert(pool->len < pool->cap);
+
+    struct Slab *slab = &pool->slabs[pool->len];
+    slab_init(alloc, slab, size_class);
+
+    ++pool->len;
+
+    return slab;
+}
+
+struct Slab *slab_from_ptr(void *ptr) {
+    char *ptr_down_aligned = (char *)align_down_to_slab_size(ptr);
+
+    struct Slab **slab_metadata =
+        (struct Slab **)(ptr_down_aligned + SLAB_SIZE - sizeof(struct Slab *));
+
+    return *slab_metadata;
+}
+
+bool slab_alloc_is_ptr_in_this_instance(const struct SlabAlloc *alloc,
+                                        void *ptr) {
+    assert(alloc != NULL);
+    assert(ptr != NULL);
+
+    struct Slab *slab = slab_from_ptr(ptr);
+    return slab->owner == alloc;
 }
 
 struct SlabAlloc slab_alloc_init(struct Falloc *owner) {
@@ -202,7 +255,7 @@ struct SlabAlloc slab_alloc_init(struct Falloc *owner) {
     struct FixedAllocator fixed_alloc = fixed_alloc_init(SLAB_SIZE);
 
     struct SlabAlloc alloc;
-    memset((void *)alloc.slabs, 0, sizeof(alloc.slabs));
+    memset((void *)alloc.pools, 0, sizeof(alloc.pools));
     alloc.fixed_alloc = fixed_alloc;
     alloc.owner = owner;
 
@@ -210,53 +263,42 @@ struct SlabAlloc slab_alloc_init(struct Falloc *owner) {
 }
 
 void slab_alloc_deinit(struct SlabAlloc *alloc) {
-    assert(alloc != NULL);
+    assert(alloc);
 
     fixed_alloc_deinit(&alloc->fixed_alloc);
 }
 
 void *slab_alloc(struct SlabAlloc *alloc, size_t size) {
-    assert(alloc != NULL);
+    assert(alloc);
 
-    enum SlabSizeClass class = size_to_class_lookup[size];
+    enum SizeClass size_class = size_to_class_lookup[size];
 
-    if (!alloc->slabs[class]) {
-        slab_init(alloc, NULL, &alloc->slabs[class], class);
+    if (!alloc->pools[size_class] && !add_slab(alloc, size_class)) {
+        return NULL;
     }
 
-    struct Slab *slab = alloc->slabs[class];
-    assert(slab != NULL);
+    struct SlabPool *pool = alloc->pools[size_class];
 
-    while (true) {
-        if (slab->cache.size != 0) {
-            CacheOffset offset = CacheStack_pop(&slab->cache);
+    for (size_t i = 0; i < pool->len; ++i) {
+        struct Slab *slab = &pool->slabs[i];
 
-            size_t bitmap_index =
-                (size_t)((float)offset *
-                         SLAB_SIZE_CLASS_RECIPROCALS[slab->size_class]);
+        void *ptr = find_in_slab(slab);
 
-            bitmap_set_to_1(&slab->bitmap, bitmap_index);
-
-            increment_alloc_counter(slab);
-            return slab->data + offset;
+        if (ptr) {
+            return ptr;
         }
-
-        size_t free_slot = bitmap_find_free_and_swap(&slab->bitmap);
-
-        if (free_slot != BITMAP_NOT_FOUND) {
-            increment_alloc_counter(slab);
-            return (char *)slab->data + (size_t)(free_slot * SLAB_SIZES[class]);
-        }
-
-        if (!slab->next_slab) {
-            slab_init(alloc, slab, &slab->next_slab, class);
-        }
-
-        slab = slab->next_slab;
     }
+
+    struct Slab *slab = add_slab(alloc, size_class);
+
+    if (!slab) {
+        return NULL;
+    }
+
+    return find_in_slab(slab);
 }
 
-enum FaFreeRet slab_free(struct SlabAlloc *alloc, void *ptr) {
+enum SlabFreeRet slab_free(struct SlabAlloc *alloc, void *ptr) {
     struct Slab *slab = slab_from_ptr(ptr);
     assert((uint8_t *)ptr >= slab->data);
 
@@ -270,10 +312,6 @@ enum FaFreeRet slab_free(struct SlabAlloc *alloc, void *ptr) {
     CacheStack_try_push(&slab->cache, (CacheOffset)offset);
 
     (void)alloc;
-    // if (slab->prev_slab &&
-    //     handle_decrementing_alloc_counter(slab) == SHOULD_DESTROY_SLAB) {
-    //     slab_deinit(alloc, slab);
-    // }
 
     return OK;
 }

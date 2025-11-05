@@ -2,17 +2,16 @@
 
 #include <error.h>
 #include <fallback_alloc/fallback_alloc.h>
-#include <os_allocator.h>
+#include <os_alloc.h>
 #include <rtree.h>
 #include <slab_alloc.h>
 
 #include <assert.h>
 #include <stddef.h>
-#include <threads.h>
 
 #define FALLBACK_ALLOC_DEFAULT_SIZE ((size_t)(10 * 1024 * 1024))
 
-thread_local struct Falloc *allocator = NULL;
+_Thread_local struct Falloc *allocator = NULL;
 
 static inline void cache_init(struct Falloc *alloc) {
     pthread_mutex_init(&alloc->lock, NULL);
@@ -88,7 +87,7 @@ static inline void cross_thread_free(void *ptr) {
 
 static inline void clear_cross_thread_cache(struct Falloc *alloc) {
     while (get_cross_thread_cache_size(alloc) != 0) {
-        enum FaFreeRet ret =
+        enum SlabFreeRet ret =
             slab_free(&alloc->slab_alloc, cross_thread_cache_pop(alloc));
         assert(ret != PTR_NOT_OWNED_BY_PASSED_ALLOCATOR_INSTANCE);
     }

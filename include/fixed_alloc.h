@@ -3,8 +3,6 @@
 
 #include "stack_declaration.h"
 
-#include "os_allocator.h"
-
 #include <assert.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -14,7 +12,6 @@ typedef size_t FixedAllocCacheSizeType;
 
 STACK_DECLARE(FixedAllocCacheElem, FixedAllocCacheSizeType, FixedAllocCache)
 
-#define SLAB_SIZE                  ((size_t)(8 * OS_ALLOC_PAGE_SIZE))
 #define FIXED_ALLOC_BLOCK_CAPACITY 64
 
 struct FixedAllocBlock {
@@ -32,8 +29,6 @@ struct FixedAllocator {
     struct FixedAllocBlock *blocks;
 };
 
-void *align_up_to_block_size(const void *ptr);
-void *align_down_to_slab_size(const void *ptr);
 // unit_size must be a power of 2.
 struct FixedAllocator fixed_alloc_init(size_t unit_size);
 void fixed_alloc_deinit(struct FixedAllocator *fixed_alloc);

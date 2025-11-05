@@ -13,11 +13,11 @@ static inline void print_allocator_memory_layout(struct FallbackAlloc *aloc) {
 
         struct FallbackChunk *chunk = aloc->regions[i].begin;
 
-        while (chunk != NULL) {
+        while (chunk) {
             printf("addr: %p\n", (void *)chunk);
             printf("used: %s\n",
                    fallback_chunk_is_used(chunk) ? "true" : "false");
-            printf("size: %zu (0x%lx)\n", fallback_chunk_size(chunk),
+            printf("size: %zu (0x%zux)\n", fallback_chunk_size(chunk),
                    fallback_chunk_size(chunk));
             printf("prev: %p\n", (void *)chunk->prev);
             printf("next: %p\n\n", (void *)chunk->next);

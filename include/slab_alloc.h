@@ -7,6 +7,7 @@
 
 #include <pthread.h>
 
+#include <stdalign.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -15,7 +16,7 @@ typedef uint32_t SlabSize;
 
 #define FA_PAGE_SIZE 0x1000
 
-enum SlabSizeClass {
+enum SizeClass {
     SLAB_CLASS_8,
     SLAB_CLASS_16,
     SLAB_CLASS_24,
@@ -132,18 +133,24 @@ struct Slab {
     uint8_t *data;
     uint32_t total_alloc_count;
     uint32_t max_alloc_count;
-    enum SlabSizeClass size_class;
+    enum SizeClass size_class;
     struct Bitmap bitmap;
     struct CacheStack cache;
-    struct Slab *next_slab;
-    struct Slab *prev_slab;
     struct SlabAlloc *owner;
+};
+
+struct SlabPool {
+    size_t len;
+    size_t cap;
+    enum SizeClass size_class;
+    struct SlabPool *next;
+    alignas(sizeof(struct Slab)) struct Slab slabs[];
 };
 
 struct Falloc;
 
 struct SlabAlloc {
-    struct Slab *slabs[SLAB_NUM_CLASSES];
+    struct SlabPool *pools[SLAB_NUM_CLASSES];
     struct FixedAllocator fixed_alloc;
     struct Falloc *owner;
 };
@@ -156,12 +163,12 @@ struct SlabAlloc slab_alloc_init(struct Falloc *owner);
 void slab_alloc_deinit(struct SlabAlloc *alloc);
 void *slab_alloc(struct SlabAlloc *alloc, size_t size);
 
-enum FaFreeRet {
+enum SlabFreeRet {
     OK,
     PTR_NOT_OWNED_BY_PASSED_ALLOCATOR_INSTANCE,
 };
 
-enum FaFreeRet slab_free(struct SlabAlloc *alloc, void *ptr);
+enum SlabFreeRet slab_free(struct SlabAlloc *alloc, void *ptr);
 void *slab_realloc(struct SlabAlloc *alloc, void *ptr, size_t size);
 size_t slab_memsize(void *ptr);
 

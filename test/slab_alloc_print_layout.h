@@ -14,7 +14,7 @@ static inline void print_slab_data(const struct Slab *slab) {
     printf("data: %p\n", slab->data);
     // printf("cache: %p\n", (void *)slab->cache);
     printf("bitmap: %p\n", (void *)&slab->bitmap);
-    printf("next slab: %p\n", (void *)slab->next_slab);
+    // printf("next slab: %p\n", (void *)slab->next);
     // printf("data size: %d\n", slab->data_size);
     // printf("cache size: %d\n", slab->cache_size);
     printf("size class: %d\n\n", SLAB_SIZES[slab->size_class]);
@@ -25,12 +25,15 @@ static inline void slab_alloc_print_layout(const struct SlabAlloc *alloc) {
     bool slab_in_use_found = false;
 
     for (int i = 0; i < SLAB_NUM_CLASSES; ++i) {
-        struct Slab *slab = alloc->slabs[i];
+        struct SlabPool *size_class = alloc->pools[i];
 
-        while (slab) {
+        if (!size_class) {
+            continue;
+        }
+
+        for (size_t j = 0; j < size_class->len; ++j) {
             slab_in_use_found = true;
-            print_slab_data(slab);
-            slab = slab->next_slab;
+            print_slab_data(&size_class->slabs[j]);
         }
     }
 

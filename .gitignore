@@ -1048,6 +1048,13 @@ dkms.conf
 .cache/
 
 scripts/make.sh
+scripts/make-release.sh
 scripts/cmake.sh
 scripts/cmake-release.sh
+scripts/cmake-mingw.sh
+scripts/cmake-mingw-release.sh
+scripts/build-mingw.sh
+scripts/build-mingw-release.sh
 test/performance_test.c
+build-windows/
+build-windows-release/

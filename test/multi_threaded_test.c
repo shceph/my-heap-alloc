@@ -13,8 +13,8 @@ void *alloc_then_free_thread_unsafe(void *arg) {
     (void)arg;
 
     const int alloc_count = 800;
-    const enum SlabSizeClass class = SLAB_CLASS_48;
-    SlabSize size = SLAB_SIZES[class];
+    const enum SizeClass size_class = SLAB_CLASS_48;
+    SlabSize size = SLAB_SIZES[size_class];
 
     void *ptrs[alloc_count];
 
@@ -34,7 +34,7 @@ void *alloc_then_free_thread_safe(void *arg) {
     (void)arg;
 
     const int alloc_count = 800;
-    const enum SlabSizeClass class = SLAB_CLASS_48;
+    const enum SizeClass class = SLAB_CLASS_48;
     SlabSize size = SLAB_SIZES[class];
 
     void *ptrs[alloc_count];

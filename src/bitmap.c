@@ -35,6 +35,8 @@ BitmapSize bitmap_find_free_and_swap(struct Bitmap *bitmap) {
     assert(bitmap);
 
     for (BitmapSize i = 0; i < ceil_int_div_by_64(bitmap->num_elems); ++i) {
+        assert(bitmap->map);
+
         if (bitmap->map[i] == ALL_BITS_ARE_1) {
             continue;
         }

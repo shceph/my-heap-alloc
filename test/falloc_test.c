@@ -17,7 +17,7 @@ static const char STR_1[STR_1_SIZE] = "The quick green fox runs slowly";
 int main(void) {
     const int allocs = 100;
     const int ptr_to_free_index = 22;
-    const enum SlabSizeClass class = SLAB_CLASS_288;
+    const enum SizeClass size_class = SLAB_CLASS_288;
 
     puts("Initializing fast allocator...");
 
@@ -57,7 +57,8 @@ int main(void) {
 
     printf("\nData at ptr: %s\n", (char *)ptr);
 
-    print_bitmap(falloc_get_instance()->slab_alloc.slabs[class]);
+    print_bitmap(
+        &falloc_get_instance()->slab_alloc.pools[size_class]->slabs[0]);
 
     puts("Freeing all...");
 
@@ -69,5 +70,6 @@ int main(void) {
 
     slab_alloc_print_layout(&falloc_get_instance()->slab_alloc);
 
-    print_bitmap(falloc_get_instance()->slab_alloc.slabs[class]);
+    print_bitmap(
+        &falloc_get_instance()->slab_alloc.pools[size_class]->slabs[0]);
 }

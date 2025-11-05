@@ -3,7 +3,7 @@
 #include <fallback_alloc/fallback_chunk.h>
 #include <fallback_alloc/fallback_region.h>
 
-#include <sys/mman.h>
+#include <os_alloc.h>
 
 #include <assert.h>
 #include <errno.h>
@@ -21,11 +21,13 @@ static inline size_t max_size(size_t a, size_t b) {
 struct FallbackAlloc fallback_allocator_create(size_t size) {
     size = fallback_align_up(size);
 
-    struct FallbackChunk *ptr = (struct FallbackChunk *)mmap(
-        NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    // struct FallbackChunk *ptr = (struct FallbackChunk *)mmap(
+    //     NULL, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1,
+    //     0);
+    struct FallbackChunk *ptr = os_alloc(size);
 
-    if (ptr == MAP_FAILED) {
-        (void)fprintf(stderr, "mmap call failed, error message: %s\n",
+    if (!ptr) {
+        (void)fprintf(stderr, "os_alloc call failed, error message: %s\n",
                       strerror(errno));
     }
 
@@ -52,7 +54,8 @@ struct FallbackAlloc fallback_allocator_create(size_t size) {
 
 void fallback_allocator_destroy(struct FallbackAlloc *aloc) {
     for (size_t i = 0; i < FALLBACK_MAX_REGIONS; ++i) {
-        int ret = munmap(aloc->regions[i].begin, aloc->regions[i].size);
+        // int ret = munmap(aloc->regions[i].begin, aloc->regions[i].size);
+        int ret = os_free(aloc->regions[i].begin, aloc->regions[i].size);
 
         if (ret != 0) {
             (void)fprintf(
@@ -74,11 +77,14 @@ static bool add_region(struct FallbackAlloc *aloc, size_t needed_size) {
 
     size_t new_reg_size =
         max_size(aloc->total_size, needed_size + sizeof(struct FallbackChunk));
-    struct FallbackChunk *ptr =
-        (struct FallbackChunk *)mmap(NULL, new_reg_size, PROT_READ | PROT_WRITE,
-                                     MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    // struct FallbackChunk *ptr =
+    //     (struct FallbackChunk *)mmap(NULL, new_reg_size, PROT_READ |
+    //     PROT_WRITE,
+    //                                  MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 
-    if (ptr == NULL) {
+    struct FallbackChunk *ptr = os_alloc(new_reg_size);
+
+    if (!ptr) {
         return false;
     }
 
