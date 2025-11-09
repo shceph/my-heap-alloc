@@ -15,10 +15,10 @@ target_include_directories(falloc PUBLIC ${CMAKE_SOURCE_DIR}/include)
 
 file(GLOB TEST_SOURCES "test/*.c")
 
-foreach(test_file IN LISTS TEST_SOURCES)
-  get_filename_component(test_name ${test_file} NAME_WE)
+foreach(test_source IN LISTS TEST_SOURCES)
+  get_filename_component(test_name ${test_source} NAME_WE)
 
-  add_executable(${test_name} ${test_file})
+  add_executable(${test_name} ${test_source})
   target_link_libraries(${test_name} PRIVATE falloc)
 
   if(CMAKE_C_COMPILER_ID MATCHES "GNU|Clang")

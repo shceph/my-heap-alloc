@@ -151,24 +151,19 @@ struct Falloc;
 
 struct SlabAlloc {
     struct SlabPool *pools[SLAB_NUM_CLASSES];
-    struct FixedAllocator fixed_alloc;
+    struct FixedAllocator slab_store;
+    struct FixedAllocator pool_store;
     struct Falloc *owner;
 };
 
 struct Slab *slab_from_ptr(void *ptr);
-bool slab_alloc_is_ptr_in_this_instance(const struct SlabAlloc *alloc,
+bool slab_alloc_is_ptr_in_instance(const struct SlabAlloc *alloc,
                                         void *ptr);
 
 struct SlabAlloc slab_alloc_init(struct Falloc *owner);
 void slab_alloc_deinit(struct SlabAlloc *alloc);
 void *slab_alloc(struct SlabAlloc *alloc, size_t size);
-
-enum SlabFreeRet {
-    OK,
-    PTR_NOT_OWNED_BY_PASSED_ALLOCATOR_INSTANCE,
-};
-
-enum SlabFreeRet slab_free(struct SlabAlloc *alloc, void *ptr);
+void slab_free(struct SlabAlloc *alloc, void *ptr);
 void *slab_realloc(struct SlabAlloc *alloc, void *ptr, size_t size);
 size_t slab_memsize(void *ptr);
 

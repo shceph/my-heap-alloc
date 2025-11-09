@@ -87,9 +87,7 @@ static inline void cross_thread_free(void *ptr) {
 
 static inline void clear_cross_thread_cache(struct Falloc *alloc) {
     while (get_cross_thread_cache_size(alloc) != 0) {
-        enum SlabFreeRet ret =
-            slab_free(&alloc->slab_alloc, cross_thread_cache_pop(alloc));
-        assert(ret != PTR_NOT_OWNED_BY_PASSED_ALLOCATOR_INSTANCE);
+        slab_free(&alloc->slab_alloc, cross_thread_cache_pop(alloc));
     }
 }
 
@@ -138,7 +136,7 @@ void ffree(void *ptr) {
     }
 
     if (!allocator ||
-        !slab_alloc_is_ptr_in_this_instance(&allocator->slab_alloc, ptr)) {
+        !slab_alloc_is_ptr_in_instance(&allocator->slab_alloc, ptr)) {
         cross_thread_free(ptr);
         return;
     }

@@ -17,6 +17,8 @@ STACK_DEFINE(CacheOffset, CacheSizeType, CacheStack)
 
 #define SLAB_SIZE ((size_t)(1024 * OS_ALLOC_PAGE_SIZE))
 
+#define SLAB_POOL_SIZE OS_ALLOC_PAGE_SIZE
+
 #define DEFAULT_CACHE_CAPACITY    100
 #define SIZE_TO_CLASS_LOOKUP_SIZE (2UL * FA_PAGE_SIZE)
 
@@ -151,12 +153,11 @@ static inline bool is_ptr_in_slab(const struct Slab *slab, void *ptr) {
     return (uint8_t *)ptr >= slab->data && (size_t *)ptr < slab->bitmap.map;
 }
 
-static inline struct SlabPool *slab_pool_init(enum SizeClass size_class) {
-    const size_t default_alloc_size = 1 * (size_t)FA_PAGE_SIZE;
+static inline struct SlabPool *slab_pool_init(struct SlabAlloc *alloc,
+                                              enum SizeClass size_class) {
+    struct SlabPool *pool = (struct SlabPool *)fixed_alloc(&alloc->pool_store);
 
-    struct SlabPool *pool = (struct SlabPool *)os_alloc(default_alloc_size);
-
-    const size_t flex_arr_size = default_alloc_size - sizeof(struct SlabPool);
+    const size_t flex_arr_size = SLAB_POOL_SIZE - sizeof(struct SlabPool);
 
     memset(pool->slabs, 0, flex_arr_size);
 
@@ -170,7 +171,7 @@ static inline struct SlabPool *slab_pool_init(enum SizeClass size_class) {
 
 static inline void slab_init(struct SlabAlloc *alloc, struct Slab *slab,
                              enum SizeClass size_class) {
-    uint8_t *mem = (uint8_t *)fixed_alloc(&alloc->fixed_alloc);
+    uint8_t *mem = (uint8_t *)fixed_alloc(&alloc->slab_store);
     assert(mem);
 
     struct Slab **ptr_to_metadata =
@@ -200,13 +201,13 @@ static inline void slab_init(struct SlabAlloc *alloc, struct Slab *slab,
 }
 
 static inline void slab_deinit(struct SlabAlloc *alloc, struct Slab *slab) {
-    fixed_free(&alloc->fixed_alloc, slab->data);
+    fixed_free(&alloc->slab_store, slab->data);
 }
 
 static inline struct Slab *add_slab(struct SlabAlloc *alloc,
                                     enum SizeClass size_class) {
     if (!alloc->pools[size_class]) {
-        alloc->pools[size_class] = slab_pool_init(size_class);
+        alloc->pools[size_class] = slab_pool_init(alloc, size_class);
 
         if (!alloc->pools[size_class]) {
             return NULL;
@@ -214,6 +215,18 @@ static inline struct Slab *add_slab(struct SlabAlloc *alloc,
     }
 
     struct SlabPool *pool = alloc->pools[size_class];
+
+    while (pool->len == pool->cap) {
+        if (!pool->next) {
+            pool->next = slab_pool_init(alloc, size_class);
+
+            if (!pool->next) {
+                return NULL;
+            }
+        }
+
+        pool = pool->next;
+    }
 
     assert(pool->len < pool->cap);
 
@@ -234,13 +247,13 @@ struct Slab *slab_from_ptr(void *ptr) {
     return *slab_metadata;
 }
 
-bool slab_alloc_is_ptr_in_this_instance(const struct SlabAlloc *alloc,
-                                        void *ptr) {
-    assert(alloc != NULL);
-    assert(ptr != NULL);
+bool slab_alloc_is_ptr_in_instance(const struct SlabAlloc *instance,
+                                   void *ptr) {
+    assert(instance);
+    assert(ptr);
 
     struct Slab *slab = slab_from_ptr(ptr);
-    return slab->owner == alloc;
+    return slab->owner == instance;
 }
 
 struct SlabAlloc slab_alloc_init(struct Falloc *owner) {
@@ -252,11 +265,10 @@ struct SlabAlloc slab_alloc_init(struct Falloc *owner) {
         setup_num_of_elems_per_class_lookup();
     }
 
-    struct FixedAllocator fixed_alloc = fixed_alloc_init(SLAB_SIZE);
-
     struct SlabAlloc alloc;
     memset((void *)alloc.pools, 0, sizeof(alloc.pools));
-    alloc.fixed_alloc = fixed_alloc;
+    alloc.slab_store = fixed_alloc_init(SLAB_SIZE);
+    alloc.pool_store = fixed_alloc_init(SLAB_POOL_SIZE);
     alloc.owner = owner;
 
     return alloc;
@@ -265,7 +277,7 @@ struct SlabAlloc slab_alloc_init(struct Falloc *owner) {
 void slab_alloc_deinit(struct SlabAlloc *alloc) {
     assert(alloc);
 
-    fixed_alloc_deinit(&alloc->fixed_alloc);
+    fixed_alloc_deinit(&alloc->slab_store);
 }
 
 void *slab_alloc(struct SlabAlloc *alloc, size_t size) {
@@ -279,14 +291,18 @@ void *slab_alloc(struct SlabAlloc *alloc, size_t size) {
 
     struct SlabPool *pool = alloc->pools[size_class];
 
-    for (size_t i = 0; i < pool->len; ++i) {
-        struct Slab *slab = &pool->slabs[i];
+    while (pool) {
+        for (size_t i = 0; i < pool->len; ++i) {
+            struct Slab *slab = &pool->slabs[i];
 
-        void *ptr = find_in_slab(slab);
+            void *ptr = find_in_slab(slab);
 
-        if (ptr) {
-            return ptr;
+            if (ptr) {
+                return ptr;
+            }
         }
+
+        pool = pool->next;
     }
 
     struct Slab *slab = add_slab(alloc, size_class);
@@ -298,9 +314,12 @@ void *slab_alloc(struct SlabAlloc *alloc, size_t size) {
     return find_in_slab(slab);
 }
 
-enum SlabFreeRet slab_free(struct SlabAlloc *alloc, void *ptr) {
+void slab_free(struct SlabAlloc *alloc, void *ptr) {
+    (void)alloc;
+
     struct Slab *slab = slab_from_ptr(ptr);
     assert((uint8_t *)ptr >= slab->data);
+    assert(slab->owner == alloc);
 
     SlabSize offset = (uint8_t *)ptr - slab->data;
     assert(offset <= CACHE_OFFSET_MAX);
@@ -310,10 +329,6 @@ enum SlabFreeRet slab_free(struct SlabAlloc *alloc, void *ptr) {
     bitmap_set_to_0(&slab->bitmap, bitmap_index);
 
     CacheStack_try_push(&slab->cache, (CacheOffset)offset);
-
-    (void)alloc;
-
-    return OK;
 }
 
 void *slab_realloc(struct SlabAlloc *alloc, void *ptr, size_t size) {

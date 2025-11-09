@@ -36,7 +36,7 @@ double run_test(AllocFunc alloc_func, FreeFunc free_func) {
         for (int j = 0; j < NUM_OF_ALLOCS; ++j) {
             free_func(ptrs[j]);
 
-            size_t size = rand() % MAX_ALLOC_SIZE;
+            size_t size = (rand() % MAX_ALLOC_SIZE) + 1;
 
             ptrs[j] = alloc_func(size);
 
