@@ -20,7 +20,7 @@ STACK_DEFINE(CacheOffset, CacheSizeType, CacheStack)
 #define SLAB_POOL_SIZE OS_ALLOC_PAGE_SIZE
 
 #define DEFAULT_CACHE_CAPACITY    100
-#define SIZE_TO_CLASS_LOOKUP_SIZE (2UL * FA_PAGE_SIZE)
+#define SIZE_TO_CLASS_LOOKUP_SIZE (2UL * OS_ALLOC_PAGE_SIZE)
 
 static SlabSize *size_to_class_lookup = NULL;
 static SlabSize *num_of_elems_per_class_lookup = NULL;
@@ -38,7 +38,7 @@ static inline void setup_size_to_class_lookup() {
     enum SizeClass current_class_entry = 0;
 
     for (int i = 0; i <= SLAB_CLASS_MAX; ++i) {
-        if (i > SLAB_SIZES[current_class_entry]) {
+        if (i > ELEMENT_SIZES[current_class_entry]) {
             ++current_class_entry;
         }
 
@@ -49,7 +49,7 @@ static inline void setup_size_to_class_lookup() {
 static inline void setup_num_of_elems_per_class_lookup() {
     assert(num_of_elems_per_class_lookup == NULL);
 
-    num_of_elems_per_class_lookup = (SlabSize *)os_alloc(FA_PAGE_SIZE);
+    num_of_elems_per_class_lookup = (SlabSize *)os_alloc(OS_ALLOC_PAGE_SIZE);
 
     if (!num_of_elems_per_class_lookup) {
         fa_print_errno(
@@ -76,7 +76,7 @@ static inline void setup_num_of_elems_per_class_lookup() {
         const float bits_per_byte = 8.0F;
         const float bitmap_elem_size = 1 / bits_per_byte;
 
-        SlabSize elem_size = SLAB_SIZES[size_class];
+        SlabSize elem_size = ELEMENT_SIZES[size_class];
         SlabSize num_of_elems = (SlabSize)(((float)buff_size - seven_eighths) /
                                            ((float)elem_size + one_eighth));
 
@@ -107,7 +107,7 @@ static inline void increment_alloc_counter(struct Slab *slab) {
 
 #define SHOULD_DESTROY_SLAB true
 
-// If the ret vaule is SHOULD_DESTROY_SLAB (aka true), the slab should be
+// If the return vaule is SHOULD_DESTROY_SLAB (aka true), the slab should be
 // destroyed.
 static inline bool decrement_alloc_counter(struct Slab *slab) {
     const int slab_destroy_max_allocs_threshold = 10;
@@ -137,7 +137,7 @@ static inline void *find_in_slab(struct Slab *slab) {
     if (free_slot != BITMAP_NOT_FOUND) {
         increment_alloc_counter(slab);
         return (char *)slab->data +
-               (size_t)(free_slot * SLAB_SIZES[slab->size_class]);
+               (size_t)(free_slot * ELEMENT_SIZES[slab->size_class]);
     }
 
     return NULL;
@@ -182,7 +182,7 @@ static inline void slab_init(struct SlabAlloc *alloc, struct Slab *slab,
     SlabSize num_of_elems = num_of_elems_per_class_lookup[size_class];
 
     SlabSize *bitmap_data =
-        (SlabSize *)(mem + (size_t)(num_of_elems * SLAB_SIZES[size_class]));
+        (SlabSize *)(mem + (size_t)(num_of_elems * ELEMENT_SIZES[size_class]));
 
     CacheOffset *cache_data =
         (CacheOffset *)(ptr_to_metadata)-DEFAULT_CACHE_CAPACITY;
@@ -342,7 +342,7 @@ void *slab_realloc(struct SlabAlloc *alloc, void *ptr, size_t size) {
     }
 
     struct Slab *slab = slab_from_ptr(ptr);
-    SlabSize old_size = SLAB_SIZES[slab->size_class];
+    SlabSize old_size = ELEMENT_SIZES[slab->size_class];
 
     if (size <= old_size) {
         return ptr;
@@ -363,5 +363,5 @@ void *slab_realloc(struct SlabAlloc *alloc, void *ptr, size_t size) {
 
 size_t slab_memsize(void *ptr) {
     struct Slab *slab = slab_from_ptr(ptr);
-    return SLAB_SIZES[slab->size_class];
+    return ELEMENT_SIZES[slab->size_class];
 }

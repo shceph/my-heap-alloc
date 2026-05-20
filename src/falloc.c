@@ -94,7 +94,7 @@ static inline void clear_cross_thread_cache(struct Falloc *alloc) {
 void finit(void) {
     assert(!allocator);
 
-    allocator = (struct Falloc *)os_alloc((size_t)2 * FA_PAGE_SIZE);
+    allocator = (struct Falloc *)os_alloc((size_t)2 * OS_ALLOC_PAGE_SIZE);
 
     if (!allocator) {
         fa_print_error("os_alloc() faield in falloc()");

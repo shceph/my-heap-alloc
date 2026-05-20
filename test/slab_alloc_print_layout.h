@@ -17,7 +17,7 @@ static inline void print_slab_data(const struct Slab *slab) {
     // printf("next slab: %p\n", (void *)slab->next);
     // printf("data size: %d\n", slab->data_size);
     // printf("cache size: %d\n", slab->cache_size);
-    printf("size class: %d\n\n", SLAB_SIZES[slab->size_class]);
+    printf("size class: %d\n\n", ELEMENT_SIZES[slab->size_class]);
 }
 
 static inline void slab_alloc_print_layout(const struct SlabAlloc *alloc) {

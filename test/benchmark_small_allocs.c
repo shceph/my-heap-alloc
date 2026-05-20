@@ -7,7 +7,7 @@
 
 #define MAX_ALLOC_SIZE 1024
 #define NUM_OF_ALLOCS  (128 * 1024)
-#define NUM_OF_RERUNS  100
+#define NUM_OF_RUNS    100
 
 #define NANOSECONDS_PER_SECOND 1e9
 
@@ -16,7 +16,7 @@ typedef void (*FreeFunc)(void *);
 
 typedef size_t AllocType;
 
-double run_test(AllocFunc alloc_func, FreeFunc free_func) {
+static double run_test(AllocFunc alloc_func, FreeFunc free_func) {
     (void)free_func;
 
     const size_t sizeof_arr = (size_t)NUM_OF_ALLOCS * sizeof(void *);
@@ -32,7 +32,7 @@ double run_test(AllocFunc alloc_func, FreeFunc free_func) {
     struct timespec start;
     clock_gettime(CLOCK_MONOTONIC, &start);
 
-    for (int i = 0; i < NUM_OF_RERUNS; ++i) {
+    for (int i = 0; i < NUM_OF_RUNS; ++i) {
         for (int j = 0; j < NUM_OF_ALLOCS; ++j) {
             free_func(ptrs[j]);
 
@@ -65,7 +65,7 @@ double run_test(AllocFunc alloc_func, FreeFunc free_func) {
 static void *warmup_ptrs_1[WARMUP_NUM_OF_ALLOCS];
 static void *warmup_ptrs_2[WARMUP_NUM_OF_ALLOCS];
 
-void warmup(AllocFunc alloc_func, void *ptrs[]) {
+static void warmup(AllocFunc alloc_func, void *ptrs[]) {
     srand(time(NULL));
 
     const size_t max_size = 1024;
@@ -92,8 +92,8 @@ int main(void) {
     printf("falloc time: %lfs\n", falloc_time);
     printf("malloc time: %lfs\n\n", malloc_time);
 
-    printf("falloc is %lf%% faster than malloc\n",
-           malloc_time / falloc_time * 100.0);
-    printf("malloc is %lf%% faster than falloc\n",
-           falloc_time / malloc_time * 100.0);
+    printf("falloc is %lf times faster than malloc\n",
+           malloc_time / falloc_time);
+    printf("malloc is %lf times faster than falloc\n",
+           falloc_time / malloc_time);
 }
