@@ -12,6 +12,7 @@ file(GLOB FALLOC_SOURCES ${CMAKE_SOURCE_DIR}/src/*.c
      ${CMAKE_SOURCE_DIR}/src/fallback_alloc/*.c)
 add_library(falloc STATIC ${FALLOC_SOURCES})
 target_include_directories(falloc PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_include_directories(falloc PUBLIC ${CMAKE_SOURCE_DIR}/vendor/libdivide)
 
 file(GLOB TEST_SOURCES "test/*.c")
 

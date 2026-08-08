@@ -1,10 +1,12 @@
-#include <slab_alloc.h>
+#include "slab_alloc.h"
 
-#include <bitmap.h>
-#include <error.h>
-#include <fixed_alloc.h>
-#include <os_alloc.h>
-#include <stack_definition.h>
+#include "bitmap.h"
+#include "error.h"
+#include "fixed_alloc.h"
+#include "os_alloc.h"
+#include "stack_definition.h"
+
+#include <libdivide.h>
 
 #include <pthread.h>
 
@@ -21,6 +23,22 @@ STACK_DEFINE(CacheOffset, CacheSizeType, CacheStack)
 
 #define DEFAULT_CACHE_CAPACITY    100
 #define SIZE_TO_CLASS_LOOKUP_SIZE (2UL * OS_ALLOC_PAGE_SIZE)
+
+const SlabSize ELEMENT_SIZES[SLAB_NUM_CLASSES] = {
+    [SLAB_CLASS_8] = 8,     [SLAB_CLASS_16] = 16,     [SLAB_CLASS_24] = 24,
+    [SLAB_CLASS_32] = 32,   [SLAB_CLASS_48] = 48,     [SLAB_CLASS_64] = 64,
+    [SLAB_CLASS_80] = 80,   [SLAB_CLASS_96] = 96,     [SLAB_CLASS_112] = 112,
+    [SLAB_CLASS_128] = 128, [SLAB_CLASS_160] = 160,   [SLAB_CLASS_192] = 192,
+    [SLAB_CLASS_224] = 224, [SLAB_CLASS_256] = 256,   [SLAB_CLASS_288] = 288,
+    [SLAB_CLASS_320] = 320, [SLAB_CLASS_352] = 352,   [SLAB_CLASS_384] = 384,
+    [SLAB_CLASS_416] = 416, [SLAB_CLASS_448] = 448,   [SLAB_CLASS_480] = 480,
+    [SLAB_CLASS_512] = 512, [SLAB_CLASS_544] = 544,   [SLAB_CLASS_576] = 576,
+    [SLAB_CLASS_608] = 608, [SLAB_CLASS_640] = 640,   [SLAB_CLASS_672] = 672,
+    [SLAB_CLASS_704] = 704, [SLAB_CLASS_736] = 736,   [SLAB_CLASS_768] = 768,
+    [SLAB_CLASS_800] = 800, [SLAB_CLASS_832] = 832,   [SLAB_CLASS_864] = 864,
+    [SLAB_CLASS_896] = 896, [SLAB_CLASS_928] = 928,   [SLAB_CLASS_960] = 960,
+    [SLAB_CLASS_992] = 992, [SLAB_CLASS_1024] = 1024,
+};
 
 static SlabSize *size_to_class_lookup = NULL;
 static SlabSize *num_of_elems_per_class_lookup = NULL;
@@ -57,6 +75,12 @@ static inline void setup_num_of_elems_per_class_lookup() {
         assert(false);
     }
 
+    enum {
+        BITS_PER_BYTE = 8,
+        BITMAP_BITS_PER_ELEM = 1,
+        BITMAP_ROUNDING_ADJUSTMENT = BITS_PER_BYTE - 1,
+    };
+
     for (enum SizeClass size_class = SLAB_CLASS_8;
          size_class <= SLAB_CLASS_1024; ++size_class) {
         // Splitting the buffer so it stores both the data and the bitmap.
@@ -66,19 +90,17 @@ static inline void setup_num_of_elems_per_class_lookup() {
         // num_of_elems * elem_size + num_of_elems / 8 + 7/8 = buff_size
         // num_of_elems * (elem_size + 1/8) = buff_size - 7/8
         // num_of_elems = (buff_size - 7/8) / (elem_size + 1/8)
-
-        const float seven_eighths = 7.0F / 8.0F;
-        const float one_eighth = 1.0F / 8.0F;
+        // num_of_elems = (8 * (buff_size - 7/8)) / (8 * (elem_size + 1/8))
+        // num_of_elems = (8 * buff_size - 7) / (8 * elem_size + 1)
 
         const SlabSize buff_size =
             SLAB_SIZE - (DEFAULT_CACHE_CAPACITY * sizeof(CacheOffset)) -
             sizeof(struct Slab *);
-        const float bits_per_byte = 8.0F;
-        const float bitmap_elem_size = 1 / bits_per_byte;
 
         SlabSize elem_size = ELEMENT_SIZES[size_class];
-        SlabSize num_of_elems = (SlabSize)(((float)buff_size - seven_eighths) /
-                                           ((float)elem_size + one_eighth));
+        SlabSize num_of_elems =
+            ((BITS_PER_BYTE * buff_size) - BITMAP_ROUNDING_ADJUSTMENT) /
+            ((BITS_PER_BYTE * elem_size) + BITMAP_BITS_PER_ELEM);
 
         num_of_elems_per_class_lookup[size_class] = num_of_elems;
     }
@@ -122,9 +144,9 @@ static inline void *find_in_slab(struct Slab *slab) {
     if (slab->cache.size != 0) {
         CacheOffset offset = CacheStack_pop(&slab->cache);
 
-        size_t bitmap_index =
-            (size_t)((float)offset *
-                     SLAB_SIZE_CLASS_RECIPROCALS[slab->size_class]);
+        struct libdivide_u64_t fast_d =
+            libdivide_u64_gen(ELEMENT_SIZES[slab->size_class]);
+        size_t bitmap_index = libdivide_u64_do(offset, &fast_d);
 
         bitmap_set_to_1(&slab->bitmap, bitmap_index);
 
@@ -185,7 +207,7 @@ static inline void slab_init(struct SlabAlloc *alloc, struct Slab *slab,
         (SlabSize *)(mem + (size_t)(num_of_elems * ELEMENT_SIZES[size_class]));
 
     CacheOffset *cache_data =
-        (CacheOffset *)(ptr_to_metadata)-DEFAULT_CACHE_CAPACITY;
+        (CacheOffset *)ptr_to_metadata - DEFAULT_CACHE_CAPACITY;
 
     assert(is_aligned((uintptr_t)bitmap_data, sizeof(BitmapSize)));
 
@@ -324,8 +346,10 @@ void slab_free(struct SlabAlloc *alloc, void *ptr) {
     SlabSize offset = (uint8_t *)ptr - slab->data;
     assert(offset <= CACHE_OFFSET_MAX);
 
-    size_t bitmap_index =
-        (size_t)((float)offset * SLAB_SIZE_CLASS_RECIPROCALS[slab->size_class]);
+    struct libdivide_u64_t fast_d =
+        libdivide_u64_gen(ELEMENT_SIZES[slab->size_class]);
+    size_t bitmap_index = libdivide_u64_do(offset, &fast_d);
+
     bitmap_set_to_0(&slab->bitmap, bitmap_index);
 
     CacheStack_try_push(&slab->cache, (CacheOffset)offset);

@@ -37,3 +37,5 @@ CheckOptions:
     value: UPPER_CASE
   - key: misc-include-cleaner.IgnoreHeaders
     value: "pthread.h;bits/pthreadtypes.h"
+
+HeaderFilterRegex: '^(?!.*vendor/).*$'
