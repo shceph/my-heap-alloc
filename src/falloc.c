@@ -4,7 +4,8 @@
 #include "fallback_alloc/fallback_alloc.h"
 #include "os_alloc.h"
 #include "rtree.h"
-#include "slab_alloc.h"
+#include "slab_alloc/slab.h"
+#include "slab_alloc/slab_alloc.h"
 
 #include <assert.h>
 #include <stddef.h>

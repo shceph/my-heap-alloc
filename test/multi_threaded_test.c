@@ -1,5 +1,5 @@
 #include "falloc.h"
-#include "slab_alloc.h"
+// #include "slab_alloc/slab_alloc.h"
 
 #include <pthread.h>
 
@@ -7,30 +7,30 @@
 #include <stdio.h>
 #include <string.h>
 
-struct SlabAlloc alloc;
+// static struct SlabAlloc alloc;
 
-void *alloc_then_free_thread_unsafe(void *arg) {
-    (void)arg;
+// static void *alloc_then_free_thread_unsafe(void *arg) {
+//     (void)arg;
 
-    const int alloc_count = 800;
-    const enum SizeClass size_class = SLAB_CLASS_48;
-    SlabSize size = ELEMENT_SIZES[size_class];
+//     const int alloc_count = 800;
+//     const enum SizeClass size_class = SLAB_CLASS_48;
+//     SlabSize size = ELEMENT_SIZES[size_class];
 
-    void *ptrs[alloc_count];
+//     void *ptrs[alloc_count];
 
-    for (int i = 0; i < alloc_count; ++i) {
-        ptrs[i] = slab_alloc(&alloc, size);
-        memset(ptrs[i], 0, size);
-    }
+//     for (int i = 0; i < alloc_count; ++i) {
+//         ptrs[i] = slab_alloc(&alloc, size);
+//         memset(ptrs[i], 0, size);
+//     }
 
-    for (int i = 0; i < alloc_count; ++i) {
-        slab_free(&alloc, ptrs[i]);
-    }
+//     for (int i = 0; i < alloc_count; ++i) {
+//         slab_free(&alloc, ptrs[i]);
+//     }
 
-    return NULL;
-}
+//     return NULL;
+// }
 
-void *alloc_then_free_thread_safe(void *arg) {
+static void *alloc_then_free_thread_safe(void *arg) {
     (void)arg;
 
     const int alloc_count = 800;
@@ -51,7 +51,7 @@ void *alloc_then_free_thread_safe(void *arg) {
     return ptrs[0];
 }
 
-void *free_ptr_from_main_thread(void *ptr) {
+static void *free_ptr_from_main_thread(void *ptr) {
     ffree(ptr);
 
     return NULL;

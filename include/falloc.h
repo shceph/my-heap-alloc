@@ -2,7 +2,7 @@
 #define FAST_ALLOC_GLOBAL_WRAPPER_H
 
 #include "rtree.h"
-#include "slab_alloc.h"
+#include "slab_alloc/slab_alloc.h"
 
 #include "fallback_alloc/fallback_alloc.h"
 

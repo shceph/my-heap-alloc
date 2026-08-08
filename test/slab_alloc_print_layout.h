@@ -2,7 +2,7 @@
 #define FAST_ALLOC_PRINT_LAYOUT_H
 
 #include "bitmap.h"
-#include "slab_alloc.h"
+#include "slab_alloc/slab_alloc.h"
 
 #include <stdio.h>
 

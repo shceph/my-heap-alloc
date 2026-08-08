@@ -8,8 +8,10 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 
-file(GLOB FALLOC_SOURCES ${CMAKE_SOURCE_DIR}/src/*.c
-     ${CMAKE_SOURCE_DIR}/src/fallback_alloc/*.c)
+file(GLOB FALLOC_SOURCES
+	${CMAKE_SOURCE_DIR}/src/*.c
+	${CMAKE_SOURCE_DIR}/src/slab_alloc/*.c
+    ${CMAKE_SOURCE_DIR}/src/fallback_alloc/*.c)
 add_library(falloc STATIC ${FALLOC_SOURCES})
 target_include_directories(falloc PUBLIC ${CMAKE_SOURCE_DIR}/include)
 target_include_directories(falloc PUBLIC ${CMAKE_SOURCE_DIR}/vendor/libdivide)
