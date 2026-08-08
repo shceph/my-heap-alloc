@@ -1,6 +1,5 @@
 #include "falloc.h"
 
-#include "error.h"
 #include "fallback_alloc/fallback_alloc.h"
 #include "os_alloc.h"
 #include "rtree.h"
@@ -98,8 +97,7 @@ void finit(void) {
     allocator = (struct Falloc *)os_alloc((size_t)2 * OS_ALLOC_PAGE_SIZE);
 
     if (!allocator) {
-        fa_print_error("os_alloc() faield in falloc()");
-        assert(false);
+        assert(false && "os_alloc() faield in falloc()");
     }
 
     *allocator = (struct Falloc){

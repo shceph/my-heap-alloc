@@ -1,7 +1,6 @@
 #include "slab_alloc/slab_alloc.h"
 #include "slab_alloc/slab.h"
 
-#include "error.h"
 #include "fixed_alloc.h"
 #include "os_alloc.h"
 
@@ -24,8 +23,7 @@ static inline void setup_size_to_class_lookup() {
     size_to_class_lookup = (SlabSize *)os_alloc(SIZE_TO_CLASS_LOOKUP_SIZE);
 
     if (!size_to_class_lookup) {
-        fa_print_errno("os_alloc() failed in setup_size_to_class_lookup()");
-        assert(false);
+        assert(false && "os_alloc() failed in setup_size_to_class_lookup()");
     }
 
     enum SizeClass current_class_entry = 0;
@@ -45,9 +43,8 @@ static inline void setup_num_of_elems_per_class_lookup() {
     num_of_elems_per_class_lookup = (SlabSize *)os_alloc(OS_ALLOC_PAGE_SIZE);
 
     if (!num_of_elems_per_class_lookup) {
-        fa_print_errno(
-            "os_alloc() failed in setup_num_of_elems_per_class_lookup()");
-        assert(false);
+        assert(false &&
+               "os_alloc() failed in setup_num_of_elems_per_class_lookup()");
     }
 
     enum {

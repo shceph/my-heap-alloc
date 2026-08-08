@@ -1,6 +1,5 @@
 #include "fixed_alloc.h"
 
-#include "error.h"
 #include "os_alloc.h"
 #include "stack_definition.h"
 
@@ -48,8 +47,7 @@ static inline struct FixedAllocBlock block_init(size_t unit_size,
     void *mem = os_alloc(block_size);
 
     if (!mem) {
-        fa_print_errno("os_alloc() failed in fixed_alloc_init()");
-        assert(false);
+        assert(false && "os_alloc() failed in fixed_alloc_init()");
     }
 
     void *aligned_up_mem = align_up_to_unit_size(mem, unit_size);
@@ -76,8 +74,7 @@ static inline void block_deinit(struct FixedAllocBlock *block) {
     int ret = os_free(block->os_allocated_mem, block->os_allocated_size);
 
     if (ret == OS_FREE_FAIL) {
-        fa_print_errno("os_free() failed in fixed_alloc_deinit()");
-        assert(false);
+        assert(false && "os_free() failed in fixed_alloc_deinit()");
     }
 }
 
